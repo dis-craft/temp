@@ -55,12 +55,15 @@ export function LoginForm() {
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
+        const userEmail = user.email;
+        const role = userEmail === 'mrsrikart@gmail.com' ? 'super-admin' : 'member';
+        
         await setDoc(userRef, {
           id: user.uid,
           name: user.displayName,
           email: user.email,
           avatarUrl: user.photoURL,
-          role: 'member',
+          role: role,
         });
       }
 
@@ -88,12 +91,14 @@ export function LoginForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
+      const role = values.email === 'mrsrikart@gmail.com' ? 'super-admin' : 'member';
+
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
         name: values.name,
         email: user.email,
         avatarUrl: null,
-        role: 'member',
+        role: role,
       });
 
       toast({

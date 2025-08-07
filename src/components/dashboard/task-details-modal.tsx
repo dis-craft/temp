@@ -33,7 +33,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   if (!task) return null;
 
-  const assignees = task.assignees.map(assigneeId => allUsers.find(u => u.id === assigneeId)!).filter(Boolean);
+  const assignees = task.assignees || [];
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
@@ -136,7 +136,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                 {task.comments.map(comment => (
                   <div key={comment.id} className="flex items-start space-x-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={comment.author.avatarUrl} />
+                      <AvatarImage src={comment.author.avatarUrl || undefined} />
                       <AvatarFallback>{comment.author.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -153,7 +153,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                 <Separator className="my-4" />
                 <div className="flex items-start space-x-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={currentUser.avatarUrl} />
+                      <AvatarImage src={currentUser.avatarUrl || undefined} />
                       <AvatarFallback>{currentUser.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
@@ -169,14 +169,14 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
               </div>
             </TabsContent>
             <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4">
-                {(currentUser.role === "domain-lead" || currentUser.role === "admin") ? (
+                {(currentUser.role === "domain-lead" || currentUser.role === "admin" || currentUser.role === 'super-admin') ? (
                      <div className="space-y-4">
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>
                             <CardContent className="p-4 flex items-center justify-between">
                             <div className="flex items-center">
                                 <Avatar className="h-10 w-10 mr-4">
-                                <AvatarImage src={submission.author.avatarUrl} />
+                                <AvatarImage src={submission.author.avatarUrl || undefined} />
                                 <AvatarFallback>{submission.author.name?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>

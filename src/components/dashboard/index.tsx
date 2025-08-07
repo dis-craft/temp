@@ -34,7 +34,7 @@ export default function Dashboard() {
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          setCurrentUser(userSnap.data() as UserType);
+          setCurrentUser({ ...userSnap.data(), id: user.uid } as UserType);
         }
       } else {
         setCurrentUser(null);
@@ -82,7 +82,7 @@ export default function Dashboard() {
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'member') {
-      return tasks.filter(task => task.assignees.some(assignee => assignee.id === currentUser.id));
+      return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
     }
     return tasks;
   }, [currentUser, tasks]);
@@ -103,7 +103,7 @@ export default function Dashboard() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name || ''} />
+                  <AvatarImage src={currentUser.avatarUrl || undefined} alt={currentUser.name || ''} />
                   <AvatarFallback>{currentUser.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 {currentUser.name}
@@ -118,7 +118,7 @@ export default function Dashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {(currentUser.role === 'domain-lead' || currentUser.role === 'admin') && (
+          {(currentUser.role === 'domain-lead' || currentUser.role === 'admin' || currentUser.role === 'super-admin') && (
             <Button onClick={() => setCreateModalOpen(true)}>
               <PlusCircle className="mr-2" />
               Create Task

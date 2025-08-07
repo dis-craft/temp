@@ -31,7 +31,7 @@ export interface Task {
   description: string;
   dueDate: string;
   status: TaskStatus;
-  assignees: (User | string)[];
+  assignees: User[];
   comments: Comment[];
   submissions: Submission[];
   attachment?: string;

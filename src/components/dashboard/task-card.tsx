@@ -34,9 +34,9 @@ export default function TaskCard({ task, currentUser, allUsers }: TaskCardProps)
         return 'outline';
     }
   };
-
-  const assignees = task.assignees.map(assigneeId => allUsers.find(u => u.id === assigneeId)!).filter(Boolean);
-  const submissionProgress = (task.submissions.length / assignees.length) * 100;
+  
+  const assignees = task.assignees || [];
+  const submissionProgress = assignees.length > 0 ? (task.submissions.length / assignees.length) * 100 : 0;
 
   return (
     <>
@@ -74,7 +74,7 @@ export default function TaskCard({ task, currentUser, allUsers }: TaskCardProps)
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Avatar className="h-7 w-7 border-2 border-background -ml-2 first:ml-0">
-                        <AvatarImage src={assignee.avatarUrl} alt={assignee.name || ''} />
+                        <AvatarImage src={assignee.avatarUrl || undefined} alt={assignee.name || ''} />
                         <AvatarFallback>{assignee.name?.charAt(0)}</AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>
