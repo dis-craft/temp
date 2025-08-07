@@ -14,9 +14,10 @@ import { TaskDetailsModal } from './task-details-modal';
 interface TaskCardProps {
   task: Task;
   currentUser: User;
+  allUsers: User[];
 }
 
-export default function TaskCard({ task, currentUser }: TaskCardProps) {
+export default function TaskCard({ task, currentUser, allUsers }: TaskCardProps) {
   const [isDetailsModalOpen, setDetailsModalOpen] = React.useState(false);
   const dueDate = new Date(task.dueDate);
   const isOverdue = isPast(dueDate) && task.status !== 'Completed';
@@ -34,7 +35,8 @@ export default function TaskCard({ task, currentUser }: TaskCardProps) {
     }
   };
 
-  const submissionProgress = (task.submissions.length / task.assignees.length) * 100;
+  const assignees = task.assignees.map(assigneeId => allUsers.find(u => u.id === assigneeId)!).filter(Boolean);
+  const submissionProgress = (task.submissions.length / assignees.length) * 100;
 
   return (
     <>
@@ -67,13 +69,13 @@ export default function TaskCard({ task, currentUser }: TaskCardProps) {
           <div>
             <span className="text-xs font-medium text-muted-foreground">Assignees</span>
             <div className="flex items-center mt-1">
-              {task.assignees.slice(0, 4).map((assignee) => (
+              {assignees.slice(0, 4).map((assignee) => (
                 <TooltipProvider key={assignee.id}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Avatar className="h-7 w-7 border-2 border-background -ml-2 first:ml-0">
-                        <AvatarImage src={assignee.avatarUrl} alt={assignee.name} />
-                        <AvatarFallback>{assignee.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={assignee.avatarUrl} alt={assignee.name || ''} />
+                        <AvatarFallback>{assignee.name?.charAt(0)}</AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -82,9 +84,9 @@ export default function TaskCard({ task, currentUser }: TaskCardProps) {
                   </Tooltip>
                 </TooltipProvider>
               ))}
-              {task.assignees.length > 4 && (
+              {assignees.length > 4 && (
                 <Avatar className="h-7 w-7 border-2 border-background -ml-2">
-                  <AvatarFallback>+{task.assignees.length - 4}</AvatarFallback>
+                  <AvatarFallback>+{assignees.length - 4}</AvatarFallback>
                 </Avatar>
               )}
             </div>
@@ -103,6 +105,7 @@ export default function TaskCard({ task, currentUser }: TaskCardProps) {
         currentUser={currentUser}
         isOpen={isDetailsModalOpen}
         setIsOpen={setDetailsModalOpen}
+        allUsers={allUsers}
       />
     </>
   );

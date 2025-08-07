@@ -22,6 +22,8 @@ export default function RootLayout({
       <body className="font-body antialiased h-full">
         {children}
         <Toaster />
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js" async></script>
+        <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js" async></script>
       </body>
     </html>
   );

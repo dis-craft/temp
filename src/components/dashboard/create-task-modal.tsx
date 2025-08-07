@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { suggestAssignees } from '@/ai/flows/suggest-assignees';
 import { useToast } from '@/hooks/use-toast';
-import { allUsers } from '@/lib/mock-data';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -35,10 +34,11 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onCreateTask: (newTask: Task) => void;
+  onCreateTask: (newTask: Omit<Task, 'id'>) => void;
+  allUsers: User[];
 }
 
-export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask }: CreateTaskModalProps) {
+export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const { toast } = useToast();
 
@@ -90,11 +90,9 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask }: CreateTaskM
   };
 
   const onSubmit = (data: TaskFormValues) => {
-    const newTaskId = `task-${Date.now()}`;
     const assignees = allUsers.filter(u => data.assignees.includes(u.id));
 
-    const newTask: Task = {
-      id: newTaskId,
+    const newTask: Omit<Task, 'id'> = {
       title: data.title,
       description: data.description,
       dueDate: data.dueDate.toISOString(),
@@ -108,10 +106,6 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask }: CreateTaskM
     onCreateTask(newTask);
     form.reset();
     setIsOpen(false);
-    toast({
-        title: 'Task Created!',
-        description: `Task "${data.title}" has been successfully created.`,
-      });
   };
 
   return (

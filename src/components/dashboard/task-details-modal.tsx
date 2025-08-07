@@ -13,18 +13,68 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import type { Task, User } from '@/lib/types';
+import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
 import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 interface TaskDetailsModalProps {
   task: Task;
   currentUser: User;
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
+  allUsers: User[];
 }
 
-export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskDetailsModalProps) {
+export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers }: TaskDetailsModalProps) {
+  const { toast } = useToast();
+  const [commentText, setCommentText] = React.useState('');
+
   if (!task) return null;
+
+  const assignees = task.assignees.map(assigneeId => allUsers.find(u => u.id === assigneeId)!).filter(Boolean);
+
+  const handlePostComment = async () => {
+    if (!commentText.trim()) return;
+
+    const newComment: CommentType = {
+      id: `comment-${Date.now()}`,
+      text: commentText,
+      author: currentUser,
+      timestamp: new Date().toISOString(),
+    };
+
+    const taskRef = doc(db, 'tasks', task.id);
+    await updateDoc(taskRef, {
+      comments: arrayUnion(newComment)
+    });
+    setCommentText('');
+    toast({ title: "Comment posted!" });
+  };
+  
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Here you would typically upload to a service like Cloudflare R2 or Firebase Storage
+    // and get a URL back. For now, we'll just mock the submission.
+    
+    const newSubmission: Submission = {
+      id: `sub-${Date.now()}`,
+      author: currentUser,
+      file: file.name,
+      timestamp: new Date().toISOString(),
+      qualityScore: 0,
+    };
+    
+    const taskRef = doc(db, 'tasks', task.id);
+    await updateDoc(taskRef, {
+      submissions: arrayUnion(newSubmission)
+    });
+
+    toast({ title: "File submitted!" });
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -38,7 +88,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskD
             </div>
             <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                <span>{task.assignees.length} Assignees</span>
+                <span>{assignees.length} Assignees</span>
             </div>
             {task.attachment && (
                 <div className="flex items-center gap-2">
@@ -87,7 +137,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskD
                   <div key={comment.id} className="flex items-start space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={comment.author.avatarUrl} />
-                      <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback>{comment.author.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
                       <div className="text-sm">
@@ -104,11 +154,16 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskD
                 <div className="flex items-start space-x-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={currentUser.avatarUrl} />
-                      <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback>{currentUser.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                        <Textarea placeholder="Write a comment..." className="mb-2"/>
-                        <Button size="sm">Post Comment</Button>
+                        <Textarea 
+                          placeholder="Write a comment..." 
+                          className="mb-2"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                        />
+                        <Button size="sm" onClick={handlePostComment}>Post Comment</Button>
                     </div>
                 </div>
               </div>
@@ -122,7 +177,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskD
                             <div className="flex items-center">
                                 <Avatar className="h-10 w-10 mr-4">
                                 <AvatarImage src={submission.author.avatarUrl} />
-                                <AvatarFallback>{submission.author.name.charAt(0)}</AvatarFallback>
+                                <AvatarFallback>{submission.author.name?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
                                 <p className="font-semibold">{submission.author.name}</p>
@@ -130,8 +185,8 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskD
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 w-1/3">
-                                <Slider defaultValue={[submission.qualityScore || 75]} max={100} step={1} />
-                                <Badge variant="secondary" className="w-16 justify-center">{submission.qualityScore || 75}%</Badge>
+                                <Slider defaultValue={[submission.qualityScore || 0]} max={100} step={1} />
+                                <Badge variant="secondary" className="w-16 justify-center">{submission.qualityScore || 0}%</Badge>
                                 <Button variant="outline" size="sm">Review</Button>
                             </div>
                             </CardContent>
@@ -150,7 +205,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen }: TaskD
                                     <p className="font-semibold">Drag & drop your PDF here</p>
                                     <p className="text-sm text-muted-foreground">or click to browse</p>
                                 </Label>
-                                <Input id="submission-file" type="file" accept=".pdf" className="hidden" />
+                                <Input id="submission-file" type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} />
                                 <Button asChild className="mt-4 cursor-pointer">
                                 <label htmlFor="submission-file">Upload PDF</label>
                                 </Button>

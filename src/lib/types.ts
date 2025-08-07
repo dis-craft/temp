@@ -2,9 +2,9 @@ export type UserRole = 'super-admin' | 'admin' | 'domain-lead' | 'member';
 
 export interface User {
   id: string;
-  name: string;
-  email: string;
-  avatarUrl: string;
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
   role: UserRole;
 }
 
@@ -31,7 +31,7 @@ export interface Task {
   description: string;
   dueDate: string;
   status: TaskStatus;
-  assignees: User[];
+  assignees: (User | string)[];
   comments: Comment[];
   submissions: Submission[];
   attachment?: string;
