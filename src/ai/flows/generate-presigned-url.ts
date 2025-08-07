@@ -11,6 +11,9 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { v4 as uuidv4 } from 'uuid';
+import { config } from 'dotenv';
+
+config(); // Load environment variables
 
 const GeneratePresignedUrlInputSchema = z.object({
   filename: z.string().describe('The name of the file to upload.'),
