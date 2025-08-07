@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -107,6 +107,12 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
     }
   }
 
+  const handleDownload = (fileKey?: string) => {
+    if (!fileKey) return;
+    const downloadUrl = `${process.env.NEXT_PUBLIC_R2_DOWNLOAD_URL}/${fileKey}`;
+    window.open(downloadUrl, '_blank');
+  };
+
   return (
     <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -164,7 +170,10 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                 <p className="font-medium">{task.attachment}</p>
                                 <p className="text-sm text-muted-foreground">PDF Document</p>
                             </div>
-                            <Button variant="outline">Download</Button>
+                            <Button variant="outline" onClick={() => handleDownload(task.attachment)}>
+                              <Download className="mr-2 h-4 w-4"/>
+                              Download
+                            </Button>
                         </div>
                      </CardContent>
                   </Card>
@@ -227,7 +236,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                             <div className="flex items-center gap-4 w-1/3">
                                 <Slider defaultValue={[submission.qualityScore || 0]} max={100} step={1} />
                                 <Badge variant="secondary" className="w-16 justify-center">{submission.qualityScore || 0}%</Badge>
-                                <Button variant="outline" size="sm">Review</Button>
+                                <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>Review</Button>
                             </div>
                             </CardContent>
                         </Card>
