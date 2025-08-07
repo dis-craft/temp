@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import type { UserRole } from '@/lib/types';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -42,6 +43,19 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   });
 
+  const getRoleFromEmail = (email: string): UserRole => {
+    if (email === 'mrsrikart@gmail.com') {
+      return 'super-admin';
+    }
+    if (email === 'admin@taskmaster.pro') {
+      return 'admin';
+    }
+    if (email === 'lead@taskmaster.pro') {
+      return 'domain-lead';
+    }
+    return 'member';
+  }
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     const auth = getAuth(app);
@@ -54,8 +68,8 @@ export function LoginForm() {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
 
-      const userEmail = user.email;
-      const role = userEmail === 'mrsrikart@gmail.com' ? 'super-admin' : 'member';
+      const userEmail = user.email || '';
+      const role = getRoleFromEmail(userEmail);
 
       if (!userSnap.exists()) {
         // New user
@@ -95,7 +109,7 @@ export function LoginForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      const role = values.email === 'mrsrikart@gmail.com' ? 'super-admin' : 'member';
+      const role = getRoleFromEmail(values.email);
 
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
