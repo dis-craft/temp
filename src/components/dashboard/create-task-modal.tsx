@@ -16,7 +16,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { suggestAssignees } from '@/ai/flows/suggest-assignees';
-import { generatePresignedUrl } from '@/ai/flows/generate-presigned-url';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
@@ -38,14 +37,6 @@ interface CreateTaskModalProps {
   onCreateTask: (newTask: Omit<Task, 'id'>) => void;
   allUsers: User[];
 }
-
-const toBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = (error) => reject(error);
-  });
 
 export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
@@ -102,14 +93,22 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
   const uploadFile = async (file: File): Promise<string> => {
     setIsUploading(true);
     try {
-      const body = await toBase64(file);
-      const { key } = await generatePresignedUrl({
-        filename: file.name,
-        contentType: file.type,
-        body,
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
       });
 
-      return key;
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'File upload failed');
+      }
+
+      const result = await response.json();
+      return result.key;
+
     } catch (error) {
       console.error('Upload error:', error);
       toast({

@@ -18,7 +18,6 @@ import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, P
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { generatePresignedUrl } from '@/ai/flows/generate-presigned-url';
 import { EditTaskModal } from './edit-task-modal';
 
 interface TaskDetailsModalProps {
@@ -29,14 +28,6 @@ interface TaskDetailsModalProps {
   allUsers: User[];
   onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
 }
-
-const toBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = (error) => reject(error);
-  });
 
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
@@ -74,12 +65,21 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
     setIsUploading(true);
     try {
-      const body = await toBase64(file);
-      const { key } = await generatePresignedUrl({
-        filename: file.name,
-        contentType: file.type,
-        body,
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
       });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'File upload failed');
+      }
+
+      const result = await response.json();
+      const key = result.key;
       
       const newSubmission: Submission = {
         id: `sub-${Date.now()}`,
