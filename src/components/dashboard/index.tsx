@@ -18,27 +18,34 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
   const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
+  const [loadingUser, setLoadingUser] = React.useState(true);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [allUsers, setAllUsers] = React.useState<UserType[]>([]);
   const [isCreateModalOpen, setCreateModalOpen] = React.useState(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         const userRef = doc(db, 'users', user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          setCurrentUser({ ...userSnap.data(), id: user.uid } as UserType);
+          setCurrentUser({ id: user.uid, ...userSnap.data() } as UserType);
+        } else {
+          // This case might happen if the user exists in Auth but not in Firestore yet
+          // You might want to create the user document here if that's desired behavior
+          setCurrentUser(null);
         }
       } else {
         setCurrentUser(null);
       }
+      setLoadingUser(false);
     });
 
     return () => unsubscribeAuth();
@@ -86,9 +93,21 @@ export default function Dashboard() {
     }
     return tasks;
   }, [currentUser, tasks]);
+  
+  if (loadingUser) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!currentUser) {
-    return null;
+    return (
+        <div className="flex h-full w-full items-center justify-center">
+            <p>Could not load user data. Please try logging in again.</p>
+        </div>
+    );
   }
 
   return (
