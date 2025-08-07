@@ -11,7 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { v4 as uuidv4 } from 'uuid';
-import { R2Service } from '@/services/r2';
 
 const GeneratePresignedUrlInputSchema = z.object({
   filename: z.string().describe('The name of the file to upload.'),
@@ -39,7 +38,29 @@ const generatePresignedUrlFlow = ai.defineFlow(
   async (input) => {
     const key = `${uuidv4()}-${input.filename}`;
     const fileBuffer = Buffer.from(input.body, 'base64');
-    await R2Service.uploadFile(key, fileBuffer, input.contentType);
-    return { key };
+    
+    const workerUrl = process.env.R2_WORKER_URL;
+    if (!workerUrl) {
+        throw new Error('R2_WORKER_URL environment variable is not set.');
+    }
+
+    const response = await fetch(`${workerUrl}/upload`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': input.contentType,
+            'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
+            'X-File-Key': key
+        },
+        body: fileBuffer,
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to upload file to worker: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    return { key: result.key };
   }
 );
