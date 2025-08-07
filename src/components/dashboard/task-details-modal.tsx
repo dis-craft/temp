@@ -14,10 +14,11 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { generatePresignedUrl } from '@/ai/flows/generate-presigned-url';
 
 interface TaskDetailsModalProps {
   task: Task;
@@ -30,6 +31,7 @@ interface TaskDetailsModalProps {
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
+  const [isUploading, setIsUploading] = React.useState(false);
 
   if (!task) return null;
 
@@ -57,23 +59,49 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Here you would typically upload to a service like Cloudflare R2 or Firebase Storage
-    // and get a URL back. For now, we'll just mock the submission.
-    
-    const newSubmission: Submission = {
-      id: `sub-${Date.now()}`,
-      author: currentUser,
-      file: file.name,
-      timestamp: new Date().toISOString(),
-      qualityScore: 0,
-    };
-    
-    const taskRef = doc(db, 'tasks', task.id);
-    await updateDoc(taskRef, {
-      submissions: arrayUnion(newSubmission)
-    });
+    setIsUploading(true);
+    try {
+      const { url, key } = await generatePresignedUrl({
+        filename: file.name,
+        contentType: file.type,
+      });
 
-    toast({ title: "File submitted!" });
+      const response = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('File upload failed.');
+      }
+      
+      const newSubmission: Submission = {
+        id: `sub-${Date.now()}`,
+        author: currentUser,
+        file: key,
+        timestamp: new Date().toISOString(),
+        qualityScore: 0,
+      };
+      
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        submissions: arrayUnion(newSubmission)
+      });
+
+      toast({ title: "File submitted!" });
+    } catch (error) {
+       console.error('Upload error:', error);
+       toast({
+         variant: 'destructive',
+         title: 'Upload Failed',
+         description: 'Could not upload the file. Please try again.',
+       });
+    } finally {
+        setIsUploading(false);
+    }
   }
 
   return (
@@ -200,15 +228,24 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg">
-                                <Upload className="h-12 w-12 text-muted-foreground mb-4"/>
-                                <Label htmlFor="submission-file" className="mb-2 text-center">
-                                    <p className="font-semibold">Drag & drop your PDF here</p>
-                                    <p className="text-sm text-muted-foreground">or click to browse</p>
-                                </Label>
-                                <Input id="submission-file" type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} />
-                                <Button asChild className="mt-4 cursor-pointer">
-                                <label htmlFor="submission-file">Upload PDF</label>
-                                </Button>
+                                {isUploading ? (
+                                    <>
+                                        <Loader2 className="h-12 w-12 text-muted-foreground mb-4 animate-spin"/>
+                                        <p className="font-semibold">Uploading...</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Upload className="h-12 w-12 text-muted-foreground mb-4"/>
+                                        <Label htmlFor="submission-file" className="mb-2 text-center">
+                                            <p className="font-semibold">Drag & drop your PDF here</p>
+                                            <p className="text-sm text-muted-foreground">or click to browse</p>
+                                        </Label>
+                                        <Input id="submission-file" type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} />
+                                        <Button asChild className="mt-4 cursor-pointer">
+                                            <label htmlFor="submission-file">Upload PDF</label>
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

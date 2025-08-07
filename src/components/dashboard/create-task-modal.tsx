@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { suggestAssignees } from '@/ai/flows/suggest-assignees';
+import { generatePresignedUrl } from '@/ai/flows/generate-presigned-url';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
@@ -40,6 +41,7 @@ interface CreateTaskModalProps {
 
 export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
+  const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
 
   const form = useForm<TaskFormValues>({
@@ -89,8 +91,47 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
     }
   };
 
-  const onSubmit = (data: TaskFormValues) => {
+  const uploadFile = async (file: File): Promise<string> => {
+    setIsUploading(true);
+    try {
+      const { url, key } = await generatePresignedUrl({
+        filename: file.name,
+        contentType: file.type,
+      });
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('File upload failed.');
+      }
+      return key;
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Upload Failed',
+        description: 'Could not upload the file. Please try again.',
+      });
+      return '';
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const onSubmit = async (data: TaskFormValues) => {
     const assignees = allUsers.filter(u => data.assignees.includes(u.id));
+    let attachmentKey = '';
+
+    if (data.attachment && data.attachment[0]) {
+      attachmentKey = await uploadFile(data.attachment[0]);
+      if (!attachmentKey) return; // Stop submission if upload fails
+    }
 
     const newTask: Omit<Task, 'id'> = {
       title: data.title,
@@ -100,7 +141,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
       assignees,
       comments: [],
       submissions: [],
-      attachment: data.attachment?.[0]?.name,
+      attachment: attachmentKey,
     };
     
     onCreateTask(newTask);
@@ -258,7 +299,10 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
             
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="submit">Create Task</Button>
+              <Button type="submit" disabled={isUploading}>
+                {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Task
+              </Button>
             </DialogFooter>
           </form>
         </Form>
