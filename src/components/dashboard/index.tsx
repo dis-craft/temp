@@ -33,16 +33,21 @@ export default function Dashboard() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setCurrentUser({ id: user.uid, ...userSnap.data() } as UserType);
-        } else {
-          setCurrentUser(null);
-        }
+        const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setCurrentUser({ id: docSnap.id, ...docSnap.data() } as UserType);
+          } else {
+            // This case might happen if the user doc hasn't been created yet
+            setCurrentUser(null);
+          }
+          setLoadingUser(false);
+        });
+        // Returning the snapshot listener from onAuthStateChanged is tricky.
+        // It's better to just let it be, or handle its cleanup separately if the component unmounts.
       } else {
         setCurrentUser(null);
+        setLoadingUser(false);
       }
-      setLoadingUser(false);
     });
 
     return () => unsubscribeAuth();
