@@ -12,8 +12,8 @@ export default function LoginPage() {
                         <span className="text-2xl font-bold font-headline text-primary">TaskMaster Pro</span>
                     </div>
                 </div>
-                <h1 className="text-3xl font-bold text-center mb-2 font-headline">Welcome Back</h1>
-                <p className="text-center text-muted-foreground mb-8">Sign in to continue to your dashboard.</p>
+                <h1 className="text-3xl font-bold text-center mb-2 font-headline">Welcome</h1>
+                <p className="text-center text-muted-foreground mb-8">Sign in or create an account to continue.</p>
                 <LoginForm />
             </div>
         </div>
