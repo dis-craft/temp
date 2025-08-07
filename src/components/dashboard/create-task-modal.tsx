@@ -39,6 +39,14 @@ interface CreateTaskModalProps {
   allUsers: User[];
 }
 
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = (error) => reject(error);
+  });
+
 export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
@@ -94,22 +102,13 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
   const uploadFile = async (file: File): Promise<string> => {
     setIsUploading(true);
     try {
-      const { url, key } = await generatePresignedUrl({
+      const body = await toBase64(file);
+      const { key } = await generatePresignedUrl({
         filename: file.name,
         contentType: file.type,
+        body,
       });
 
-      const response = await fetch(url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('File upload failed.');
-      }
       return key;
     } catch (error) {
       console.error('Upload error:', error);

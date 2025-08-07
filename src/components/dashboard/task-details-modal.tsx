@@ -30,6 +30,14 @@ interface TaskDetailsModalProps {
   onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
 }
 
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = (error) => reject(error);
+  });
+
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
@@ -66,22 +74,12 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
     setIsUploading(true);
     try {
-      const { url, key } = await generatePresignedUrl({
+      const body = await toBase64(file);
+      const { key } = await generatePresignedUrl({
         filename: file.name,
         contentType: file.type,
+        body,
       });
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('File upload failed.');
-      }
       
       const newSubmission: Submission = {
         id: `sub-${Date.now()}`,

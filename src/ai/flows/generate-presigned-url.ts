@@ -16,11 +16,11 @@ import { R2Service } from '@/services/r2';
 const GeneratePresignedUrlInputSchema = z.object({
   filename: z.string().describe('The name of the file to upload.'),
   contentType: z.string().describe('The MIME type of the file.'),
+  body: z.string().describe('The base64 encoded file body'),
 });
 export type GeneratePresignedUrlInput = z.infer<typeof GeneratePresignedUrlInputSchema>;
 
 const GeneratePresignedUrlOutputSchema = z.object({
-  url: z.string().describe('The presigned URL for uploading the file.'),
   key: z.string().describe('The key of the file in the R2 bucket.'),
 });
 export type GeneratePresignedUrlOutput = z.infer<typeof GeneratePresignedUrlOutputSchema>;
@@ -38,7 +38,8 @@ const generatePresignedUrlFlow = ai.defineFlow(
   },
   async (input) => {
     const key = `${uuidv4()}-${input.filename}`;
-    const url = await R2Service.getPresignedUrl(key, input.contentType);
-    return { url, key };
+    const fileBuffer = Buffer.from(input.body, 'base64');
+    await R2Service.uploadFile(key, fileBuffer, input.contentType);
+    return { key };
   }
 );
