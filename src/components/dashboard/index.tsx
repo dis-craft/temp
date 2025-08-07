@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { collection, onSnapshot, addDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { Task, User as UserType } from '@/lib/types';
 import TaskCard from './task-card';
@@ -19,7 +19,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -38,8 +37,6 @@ export default function Dashboard() {
         if (userSnap.exists()) {
           setCurrentUser({ id: user.uid, ...userSnap.data() } as UserType);
         } else {
-          // This case might happen if the user exists in Auth but not in Firestore yet
-          // You might want to create the user document here if that's desired behavior
           setCurrentUser(null);
         }
       } else {
@@ -85,6 +82,24 @@ export default function Dashboard() {
       });
     }
   };
+
+  const updateTask = async (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      await updateDoc(taskRef, updatedData);
+      toast({
+        title: 'Task Updated!',
+        description: 'The task has been successfully updated.',
+      });
+    } catch (e) {
+      toast({
+        title: 'Error updating task',
+        description: (e as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
+
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
@@ -153,7 +168,7 @@ export default function Dashboard() {
       <div className="flex-1 overflow-y-auto pr-2 -mr-2">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleTasks.map((task) => (
-            <TaskCard key={task.id} task={task} currentUser={currentUser} allUsers={allUsers} />
+            <TaskCard key={task.id} task={task} currentUser={currentUser} allUsers={allUsers} onUpdateTask={updateTask} />
           ))}
         </div>
       </div>

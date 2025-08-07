@@ -14,11 +14,12 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2 } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { generatePresignedUrl } from '@/ai/flows/generate-presigned-url';
+import { EditTaskModal } from './edit-task-modal';
 
 interface TaskDetailsModalProps {
   task: Task;
@@ -26,12 +27,16 @@ interface TaskDetailsModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   allUsers: User[];
+  onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
 }
 
-export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers }: TaskDetailsModalProps) {
+export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
   const [isUploading, setIsUploading] = React.useState(false);
+  const [isEditModalOpen, setEditModalOpen] = React.useState(false);
+  
+  const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
 
   if (!task) return null;
 
@@ -105,10 +110,19 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   }
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl pr-12">{task.title}</DialogTitle>
+          <div className="flex justify-between items-start">
+            <DialogTitle className="font-headline text-2xl pr-12">{task.title}</DialogTitle>
+            {canEditTask && (
+                <Button variant="outline" size="icon" onClick={() => { setIsOpen(false); setEditModalOpen(true); }}>
+                  <Pencil className="h-4 w-4" />
+                  <span className="sr-only">Edit Task</span>
+                </Button>
+            )}
+          </div>
           <div className="flex items-center space-x-4 text-sm text-muted-foreground pt-1">
             <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
@@ -255,5 +269,13 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         </div>
       </DialogContent>
     </Dialog>
+    <EditTaskModal 
+        isOpen={isEditModalOpen} 
+        setIsOpen={setEditModalOpen}
+        onUpdateTask={onUpdateTask}
+        allUsers={allUsers}
+        task={task}
+    />
+    </>
   );
 }
