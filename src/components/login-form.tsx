@@ -54,10 +54,11 @@ export function LoginForm() {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
 
+      const userEmail = user.email;
+      const role = userEmail === 'mrsrikart@gmail.com' ? 'super-admin' : 'member';
+
       if (!userSnap.exists()) {
-        const userEmail = user.email;
-        const role = userEmail === 'mrsrikart@gmail.com' ? 'super-admin' : 'member';
-        
+        // New user
         await setDoc(userRef, {
           id: user.uid,
           name: user.displayName,
@@ -65,6 +66,9 @@ export function LoginForm() {
           avatarUrl: user.photoURL,
           role: role,
         });
+      } else {
+        // Existing user, update role just in case it changed
+        await setDoc(userRef, { role: role }, { merge: true });
       }
 
       toast({
