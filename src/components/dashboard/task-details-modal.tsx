@@ -36,10 +36,12 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
   
   const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const isMember = currentUser.role === 'member';
 
   if (!task) return null;
 
   const assignees = task.assignees || [];
+  const userSubmissions = task.submissions.filter(s => s.author.id === currentUser.id);
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
@@ -109,7 +111,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = (fileKey?: string) => {
     if (!fileKey) return;
-    const downloadUrl = `${process.env.NEXT_PUBLIC_R2_DOWNLOAD_URL}/${fileKey}`;
+    const downloadUrl = `${process.env.NEXT_PUBLIC_R2_WORKER_URL}/${fileKey}`;
     window.open(downloadUrl, '_blank');
   };
 
@@ -217,8 +219,8 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4">
-                {(currentUser.role === "domain-lead" || currentUser.role === "admin" || currentUser.role === 'super-admin') ? (
+            <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-6">
+                {canEditTask && (
                      <div className="space-y-4">
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>
@@ -242,8 +244,33 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                         </Card>
                         ))}
                     </div>
-                ) : (
-                    <Card className="mt-4">
+                )}
+                
+                {isMember && (
+                  <>
+                    {userSubmissions.length > 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg font-headline">Your Submissions</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {userSubmissions.map(submission => (
+                            <div key={submission.id} className="flex items-center justify-between p-2 border rounded-md">
+                               <div className="flex items-center gap-3">
+                                <FileText className="h-6 w-6 text-muted-foreground" />
+                                <span className="text-sm font-medium">{submission.file}</span>
+                               </div>
+                               <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>
+                                  <Download className="mr-2 h-4 w-4"/>
+                                  Download
+                               </Button>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <Card>
                         <CardHeader>
                             <CardTitle className="text-lg font-headline">Submit Your Work</CardTitle>
                         </CardHeader>
@@ -270,6 +297,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                             </div>
                         </CardContent>
                     </Card>
+                  </>
                 )}
             </TabsContent>
           </Tabs>
