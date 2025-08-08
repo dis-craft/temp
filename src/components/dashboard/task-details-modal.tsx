@@ -35,8 +35,9 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const [isUploading, setIsUploading] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
   
-  const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canEditTask = currentUser.role === 'admin' || currentUser.role === 'domain-lead';
   const isMember = currentUser.role === 'member';
+  const canReviewSubmissions = currentUser.role === 'admin' || currentUser.role === 'domain-lead';
 
   if (!task) return null;
 
@@ -220,7 +221,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
               </div>
             </TabsContent>
             <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-6">
-                {canEditTask && (
+                {canReviewSubmissions && (
                      <div className="space-y-4">
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>

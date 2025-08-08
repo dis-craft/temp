@@ -37,13 +37,11 @@ export default function Dashboard() {
           if (docSnap.exists()) {
             setCurrentUser({ id: docSnap.id, ...docSnap.data() } as UserType);
           } else {
-            // This case might happen if the user doc hasn't been created yet
             setCurrentUser(null);
           }
           setLoadingUser(false);
         });
-        // Returning the snapshot listener from onAuthStateChanged is tricky.
-        // It's better to just let it be, or handle its cleanup separately if the component unmounts.
+        return () => unsubscribeUser();
       } else {
         setCurrentUser(null);
         setLoadingUser(false);
@@ -130,6 +128,8 @@ export default function Dashboard() {
     );
   }
 
+  const canCreateTask = currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+
   return (
     <div className="w-full h-full flex flex-col">
       <header className="flex items-center justify-between pb-4 border-b">
@@ -157,7 +157,7 @@ export default function Dashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {(currentUser.role === 'domain-lead' || currentUser.role === 'admin' || currentUser.role === 'super-admin') && (
+          {canCreateTask && (
             <Button onClick={() => setCreateModalOpen(true)}>
               <PlusCircle className="mr-2" />
               Create Task

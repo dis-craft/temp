@@ -44,10 +44,7 @@ export function LoginForm() {
   });
 
   const getRoleFromEmail = (email: string): UserRole => {
-    if (email === 'mrsrikart@gmail.com') {
-      return 'super-admin';
-    }
-    if (email === 'admin@taskmaster.pro') {
+    if (email === 'mrsrikart@gmail.com' || email === 'admin@taskmaster.pro') {
       return 'admin';
     }
     if (email === 'lead@taskmaster.pro') {
