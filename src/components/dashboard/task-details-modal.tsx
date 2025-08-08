@@ -35,9 +35,9 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const [isUploading, setIsUploading] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
   
-  const canEditTask = currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
   const isMember = currentUser.role === 'member';
-  const canReviewSubmissions = currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canReviewSubmissions = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
 
   if (!task) return null;
 

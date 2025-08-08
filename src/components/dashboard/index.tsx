@@ -128,7 +128,7 @@ export default function Dashboard() {
     );
   }
 
-  const canCreateTask = currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canCreateTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
 
   return (
     <div className="w-full h-full flex flex-col">
