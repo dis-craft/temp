@@ -55,7 +55,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
   const canReviewSubmissions = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
-  const isMember = !canEditTask && !canReviewSubmissions;
+  const isMember = currentUser.role === 'member';
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
@@ -88,6 +88,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
            headers: {
             'X-User-Name': currentUser?.name || 'unknown-user',
             'X-Task-Title': task.title || 'untitled-task',
+            'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
           },
           body: formData,
       });
@@ -119,7 +120,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
        toast({
          variant: 'destructive',
          title: 'Upload Failed',
-         description: 'Could not upload the file. Please try again.',
+         description: (error as Error).message || 'Could not upload the file. Please try again.',
        });
     } finally {
         setIsUploading(false);
@@ -348,7 +349,6 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                             <CardTitle className="text-lg font-headline">Submit Your Work</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <AlertDialog>
                             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg">
                                 {isUploading ? (
                                     <>
@@ -358,7 +358,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                 ) : (
                                     <>
                                         <Upload className="h-12 w-12 text-muted-foreground mb-4"/>
-                                        <Label htmlFor="submission-file" className="mb-2 text-center">
+                                        <Label htmlFor="submission-file" className="mb-2 text-center cursor-pointer">
                                             <p className="font-semibold">Drag & drop your PDF here</p>
                                             <p className="text-sm text-muted-foreground">or click to browse</p>
                                         </Label>
@@ -369,29 +369,33 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                           className="hidden" 
                                           onChange={(e) => setFileToUpload(e.target.files?.[0] || null)} 
                                         />
-                                        <AlertDialogTrigger asChild>
-                                          <Button className="mt-4" disabled={!fileToUpload}>
-                                            Upload PDF
-                                          </Button>
-                                        </AlertDialogTrigger>
+                                        {fileToUpload && (
+                                            <div className="mt-4 text-center">
+                                                <p className="text-sm font-medium">Selected: {fileToUpload.name}</p>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button className="mt-2">Upload PDF</Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                        <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            Are you sure you want to submit the file: <span className="font-semibold">{fileToUpload?.name}</span>?
+                                                        </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                        <AlertDialogCancel onClick={() => setFileToUpload(null)}>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={handleFileUpload}>
+                                                            Confirm & Submit
+                                                        </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </div>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to submit the file: <span className="font-semibold">{fileToUpload?.name}</span>?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setFileToUpload(null)}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleFileUpload}>
-                                  Confirm & Submit
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
                         </CardContent>
                     </Card>
                   </>
