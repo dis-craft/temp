@@ -34,12 +34,14 @@ async function getOrCreateRole(roleName: string, permissions: Permission[]): Pro
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-        // If role exists, still ensure it has the correct permissions
         const roleDoc = querySnapshot.docs[0];
+        // Ensure existing role has all required permissions
         const roleData = roleDoc.data() as Role;
-        const newPermissions = [...new Set([...(roleData.permissions || []), ...permissions])];
-        if (newPermissions.length > (roleData.permissions || []).length) {
-            await updateDoc(roleDoc.ref, { permissions: newPermissions });
+        const currentPermissions = roleData.permissions || [];
+        const missingPermissions = permissions.filter(p => !currentPermissions.includes(p));
+
+        if(missingPermissions.length > 0) {
+            await updateDoc(roleDoc.ref, { permissions: [...currentPermissions, ...missingPermissions] });
         }
         return roleDoc.id;
     } else {
