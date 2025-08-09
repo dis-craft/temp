@@ -9,21 +9,24 @@ export const specialRolesConfig: Record<string, 'super-admin' | 'admin'> = {
 // Configuration for domains, their leads, and their members
 export const domainConfig: Record<User['domain'] & string, { lead: string, members: string[] }> = {
     'Mechanical': {
-        lead: '5245929.class9.srikar@gmail.com',
+        lead: 'mechdomainlead@gmail.com',
         members: [
+            '5245929.class9.srikar@gmail.com'
             // Add member emails for Mechanical domain here
             // e.g., 'member1@example.com',
         ]
     },
     'Electrical': {
-        lead: 'cadmvj69@gmail.com',
+        lead: 'electricaldomainlead@gmail.com',
         members: [
+            'cadmvj69@gmail.com'
             // Add member emails for Electrical domain here
         ]
     },
     'Software': {
-        lead: 'cadpwdis12345678atcad@gmail.com',
+        lead: 'softwaredomainlead@gmail.com',
         members: [
+            'cadpwdis12345678atcad@gmail.com'
             // Add member emails for Software domain here
         ]
     }

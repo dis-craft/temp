@@ -62,9 +62,6 @@ export default function Dashboard() {
         // Tasks listener
         let tasksQuery;
         if (user.role === 'domain-lead' && user.domain) {
-            // This query requires a composite index. The app will crash if it's not created.
-            // Temporarily removing order to prevent crash.
-            // To re-enable sorting, create the index in Firestore using the link from the error message.
             tasksQuery = query(collection(db, 'tasks'), where('domain', '==', user.domain));
         } else {
              tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
@@ -92,13 +89,28 @@ export default function Dashboard() {
     }
   }, [toast]);
   
-  const addTask = async (newTask: Omit<Task, 'id' | 'domain'>) => {
+  const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
     try {
-      await addDoc(collection(db, 'tasks'), { ...newTask, domain: currentUser?.domain });
+      const taskWithDomain = { ...newTask, domain: currentUser?.domain };
+      await addDoc(collection(db, 'tasks'), taskWithDomain);
+      
       toast({
         title: 'Task Created!',
         description: `Task "${newTask.title}" has been successfully created.`,
       });
+
+      if (sendEmail) {
+        await fetch('/api/send-task-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            task: taskWithDomain,
+            assignees: newTask.assignees,
+            domainLeadEmail: currentUser?.email
+          }),
+        });
+      }
+
     } catch(e) {
       toast({
         title: 'Error creating task',

@@ -4,7 +4,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { CalendarIcon, Loader2, Sparkles } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -19,9 +19,8 @@ import { suggestAssignees } from '@/ai/flows/suggest-assignees';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { Switch } from '@/components/ui/switch';
+
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -30,6 +29,7 @@ const taskFormSchema = z.object({
   assignees: z.array(z.string()).min(1, 'At least one assignee is required.'),
   reminders: z.array(z.string()).optional(),
   attachment: z.any().optional(),
+  sendEmail: z.boolean().default(false),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -37,7 +37,7 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onCreateTask: (newTask: Omit<Task, 'id' | 'domain'>) => void;
+  onCreateTask: (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => void;
   allUsers: User[];
   currentUser: User | null;
 }
@@ -54,6 +54,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
       description: '',
       assignees: [],
       reminders: [],
+      sendEmail: false,
     },
   });
 
@@ -151,7 +152,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
       attachment: attachmentKey,
     };
     
-    onCreateTask(newTask);
+    onCreateTask(newTask, data.sendEmail);
     form.reset();
     setIsOpen(false);
   };
@@ -301,6 +302,24 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
                       )}
                     />
                 </div>
+                 <FormField
+                  control={form.control}
+                  name="sendEmail"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel className="flex items-center gap-2"><Mail/> Send Email Notification</FormLabel>
+                        <p className="text-xs text-muted-foreground">Notify assignees and yourself via email about this new task.</p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
             </ScrollArea>
             
