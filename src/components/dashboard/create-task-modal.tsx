@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { v4 as uuidv4 } from 'uuid';
 
 
 const taskFormSchema = z.object({
@@ -59,7 +60,6 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
   });
 
   const descriptionValue = form.watch('description');
-  const titleValue = form.watch('title');
 
   const handleSuggestion = async () => {
     if (!descriptionValue) {
@@ -99,33 +99,44 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
   const uploadFile = async (file: File): Promise<string> => {
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('/api/upload', {
-          method: 'POST',
-          headers: {
-            'X-User-Name': currentUser?.name || 'unknown-user',
-            'X-Task-Title': titleValue || 'untitled-task',
-            'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
-          },
-          body: formData,
+      const uniqueFilename = `${uuidv4()}-${file.name}`;
+  
+      // Get a presigned URL from our API
+      const presignedUrlResponse = await fetch('/api/presigned-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: uniqueFilename,
+          contentType: file.type,
+        }),
       });
-
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'File upload failed');
+  
+      if (!presignedUrlResponse.ok) {
+        const errorData = await presignedUrlResponse.json();
+        throw new Error(errorData.error || 'Failed to get presigned URL.');
       }
-
-      const result = await response.json();
-      return result.key;
-
+  
+      const { url, key } = await presignedUrlResponse.json();
+  
+      // Upload the file directly to R2 using the presigned URL
+      const uploadResponse = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+  
+      if (!uploadResponse.ok) {
+        throw new Error('File upload to R2 failed.');
+      }
+  
+      return key; // Return the key for storing in Firestore
+  
     } catch (error) {
       console.error('Upload error:', error);
       toast({
         variant: 'destructive',
         title: 'Upload Failed',
-        description: 'Could not upload the file. Please try again.',
+        description: (error as Error).message,
       });
       return '';
     } finally {

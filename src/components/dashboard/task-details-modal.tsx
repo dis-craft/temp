@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { v4 as uuidv4 } from 'uuid';
 
 
 interface TaskDetailsModalProps {
@@ -136,34 +137,43 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   
   const handleFileUpload = async () => {
     if (!fileToUpload) return;
-
     setIsUploading(true);
+  
     try {
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
-      
-      const response = await fetch('/api/upload', {
-          method: 'POST',
-           headers: {
-            'X-User-Name': currentUser?.name || 'unknown-user',
-            'X-Task-Title': task.title || 'untitled-task',
-            'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
-          },
-          body: formData,
+      const uniqueFilename = `${uuidv4()}-${fileToUpload.name}`;
+  
+      // Get a presigned URL from our API
+      const presignedUrlResponse = await fetch('/api/presigned-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: uniqueFilename,
+          contentType: fileToUpload.type,
+        }),
       });
-
-      if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'File upload failed');
+  
+      if (!presignedUrlResponse.ok) {
+        const errorData = await presignedUrlResponse.json();
+        throw new Error(errorData.error || 'Failed to get presigned URL.');
       }
-
-      const result = await response.json();
-      const key = result.key;
-      
+  
+      const { url, key } = await presignedUrlResponse.json();
+  
+      // Upload the file directly to R2 using the presigned URL
+      const uploadResponse = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': fileToUpload.type },
+        body: fileToUpload,
+      });
+  
+      if (!uploadResponse.ok) {
+        throw new Error('File upload to R2 failed.');
+      }
+  
       const newSubmission: Submission = {
         id: `sub-${Date.now()}`,
         author: currentUser,
-        file: key,
+        file: key, // Store the key
         timestamp: new Date().toISOString(),
         qualityScore: 0,
       };
@@ -172,8 +182,9 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
       await updateDoc(taskRef, {
         submissions: arrayUnion(newSubmission)
       });
-
+  
       toast({ title: "File submitted successfully!" });
+  
     } catch (error) {
        console.error('Upload error:', error);
        toast({
@@ -208,20 +219,33 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   };
 
 
-  const handleDownload = (fileKey?: string) => {
+  const handleDownload = async (fileKey?: string) => {
     if (!fileKey) return;
-    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
-    if (!workerUrl) {
-      console.error('NEXT_PUBLIC_R2_WORKER_URL is not set.');
-      toast({
-        variant: 'destructive',
-        title: 'Configuration Error',
-        description: 'The file server URL is not configured. Please contact an administrator.',
-      });
-      return;
+  
+    try {
+        // Get a presigned URL for downloading
+        const response = await fetch('/api/presigned-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: fileKey, action: 'download' }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to get download link.');
+        }
+
+        const { url } = await response.json();
+        window.open(url, '_blank');
+
+    } catch (error) {
+        console.error('Download error:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Download Failed',
+            description: (error as Error).message,
+        });
     }
-    const downloadUrl = `${workerUrl}/${fileKey}`;
-    window.open(downloadUrl, '_blank');
   };
 
   return (
