@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
+import type { Task, User, Comment as CommentType, Submission, Permission } from '@/lib/types';
 import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -29,15 +29,19 @@ interface TaskDetailsModalProps {
   onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
 }
 
+const hasPermission = (user: User, permission: Permission) => {
+    return user.role?.permissions.includes(permission) ?? false;
+}
+
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
   const [isUploading, setIsUploading] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
   
-  const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
-  const isMember = currentUser.role === 'member';
-  const canReviewSubmissions = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canEditTask = hasPermission(currentUser, 'edit_task');
+  const canReviewSubmissions = hasPermission(currentUser, 'review_submissions');
+  const isMember = currentUser.role?.name === 'member';
 
   if (!task) return null;
 
@@ -221,7 +225,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
               </div>
             </TabsContent>
             <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-6">
-                {canReviewSubmissions && (
+                {canReviewSubmissions && !isMember && (
                      <div className="space-y-4">
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>

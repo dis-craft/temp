@@ -5,8 +5,10 @@ import {
   LayoutDashboard,
   ListTodo,
   Settings,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
+import Link from 'next/link';
 import {
   Sidebar,
   SidebarContent,
@@ -19,21 +21,43 @@ import {
 } from '@/components/ui/sidebar';
 import Dashboard from '@/components/dashboard';
 import { Logo } from '@/components/icons';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
-import { app } from '@/lib/firebase';
-import { useRouter } from 'next/navigation';
+import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { app, db } from '@/lib/firebase';
+import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import type { User, Role } from '@/lib/types';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 
-export default function DashboardPage() {
+const hasPermission = (user: User, permission: 'manage_roles') => {
+    return user.role?.permissions.includes(permission) ?? false;
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [loading, setLoading] = React.useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     const auth = getAuth(app);
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as User;
+          if (userData.roleId) {
+            const roleRef = doc(db, 'roles', userData.roleId);
+            const roleDoc = await getDoc(roleRef);
+            if (roleDoc.exists()) {
+              userData.role = roleDoc.data() as Role;
+            }
+          }
+          setUser(userData);
+        } else {
+          setUser(null);
+          router.push('/login');
+        }
       } else {
         router.push('/login');
       }
@@ -49,6 +73,10 @@ export default function DashboardPage() {
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (!user) {
+    return null; // or a fallback UI
   }
 
   return (
@@ -68,38 +96,38 @@ export default function DashboardPage() {
           <SidebarContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Dashboard" isActive>
-                  <LayoutDashboard />
-                  <span>Dashboard</span>
-                </SidebarMenuButton>
+                 <Link href="/dashboard" className='w-full'>
+                    <SidebarMenuButton tooltip="Dashboard" isActive={pathname === '/dashboard'}>
+                      <LayoutDashboard />
+                      <span>Dashboard</span>
+                    </SidebarMenuButton>
+                 </Link>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Tasks">
-                  <ListTodo />
-                  <span>Tasks</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Team">
-                  <Users />
-                  <span>Team</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Settings">
-                  <Settings />
-                  <span>Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission(user, 'manage_roles') && (
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/roles" className='w-full'>
+                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
+                        <ShieldCheck />
+                        <span>Manage Roles</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
         <SidebarInset className="bg-background flex-1">
           <main className="h-full p-4 md:p-6 lg:p-8">
-            <Dashboard />
+            {children}
           </main>
         </SidebarInset>
       </div>
     </SidebarProvider>
   );
 }
+
+function DashboardPage() {
+    return <Dashboard />;
+}
+
+export { DashboardPage };

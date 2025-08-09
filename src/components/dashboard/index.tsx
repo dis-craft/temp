@@ -3,9 +3,9 @@
 import * as React from 'react';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Task, User as UserType } from '@/lib/types';
+import type { Task, User as UserType, Role } from '@/lib/types';
 import TaskCard from './task-card';
 import { CreateTaskModal } from './create-task-modal';
 import {
@@ -21,6 +21,10 @@ import { useToast } from '@/hooks/use-toast';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
+const hasPermission = (user: UserType, permission: 'create_task') => {
+  return user.role?.permissions.includes(permission) ?? false;
+}
+
 export default function Dashboard() {
   const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
   const [loadingUser, setLoadingUser] = React.useState(true);
@@ -30,43 +34,50 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
-      if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
-          if (docSnap.exists()) {
-            setCurrentUser({ id: docSnap.id, ...docSnap.data() } as UserType);
-          } else {
-            setCurrentUser(null);
-          }
-          setLoadingUser(false);
+    const fetchUsersAndRoles = async () => {
+        const rolesSnapshot = await getDocs(collection(db, 'roles'));
+        const rolesMap = new Map<string, Role>();
+        rolesSnapshot.forEach(doc => rolesMap.set(doc.id, { id: doc.id, ...doc.data() } as Role));
+
+        const usersQuery = collection(db, 'users');
+        const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => {
+                const user = { ...doc.data(), id: doc.id } as UserType;
+                if (user.roleId && rolesMap.has(user.roleId)) {
+                    user.role = rolesMap.get(user.roleId);
+                }
+                return user;
+            });
+            setAllUsers(usersData);
+
+             if (auth.currentUser) {
+                const currentUserData = usersData.find(u => u.id === auth.currentUser!.uid);
+                setCurrentUser(currentUserData || null);
+             }
+             setLoadingUser(false);
         });
-        return () => unsubscribeUser();
-      } else {
-        setCurrentUser(null);
-        setLoadingUser(false);
-      }
-    });
+        
+        return () => unsubscribeUsers();
+    };
+    
+    fetchUsersAndRoles();
 
-    return () => unsubscribeAuth();
-  }, []);
-
-  React.useEffect(() => {
     const q = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeTasks = onSnapshot(q, (snapshot) => {
       const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
       setTasks(tasksData);
     });
 
-    const usersQuery = collection(db, 'users');
-    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType));
-      setAllUsers(usersData);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
+        if (!user) {
+            setCurrentUser(null);
+            setLoadingUser(false);
+        }
     });
 
     return () => {
-      unsubscribe();
-      unsubscribeUsers();
+      unsubscribeTasks();
+      unsubscribeAuth();
     }
   }, []);
   
@@ -106,7 +117,8 @@ export default function Dashboard() {
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === 'member') {
+    // Admins and leads see all tasks, members only see their own.
+    if (currentUser.role?.name === 'member') {
       return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
     }
     return tasks;
@@ -128,7 +140,7 @@ export default function Dashboard() {
     );
   }
 
-  const canCreateTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canCreateTask = hasPermission(currentUser, 'create_task');
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -149,7 +161,7 @@ export default function Dashboard() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuLabel>{currentUser.role?.name || 'No Role'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => auth.signOut()}>
                   Sign Out

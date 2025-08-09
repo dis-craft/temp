@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { UserRole } from '@/lib/types';
+import type { Role } from '@/lib/types';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -27,6 +27,22 @@ const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
 });
+
+async function getOrCreateRole(roleName: string, permissions: string[]): Promise<string> {
+    const rolesRef = collection(db, 'roles');
+    const q = query(rolesRef, where('name', '==', roleName));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+        return querySnapshot.docs[0].id;
+    } else {
+        const newRole: Omit<Role, 'id'> = { name: roleName, permissions: permissions as any };
+        const docRef = await addDoc(rolesRef, newRole);
+        await setDoc(doc(db, 'roles', docRef.id), { id: docRef.id }, { merge: true });
+        return docRef.id;
+    }
+}
+
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -43,60 +59,54 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   });
 
-  const getRoleFromEmail = (email: string): UserRole => {
+  const getRoleIdFromEmail = async (email: string): Promise<string> => {
+    let roleId = '';
     if (email === 'super-admin@taskmaster.pro') {
-      return 'super-admin';
+      roleId = await getOrCreateRole('super-admin', ['create_task', 'edit_task', 'review_submissions', 'manage_roles']);
+    } else if (email === 'mrsrikart@gmail.com' || email === 'admin@taskmaster.pro') {
+      roleId = await getOrCreateRole('admin', ['create_task', 'edit_task', 'review_submissions']);
+    } else if (email === 'lead@taskmaster.pro') {
+        roleId = await getOrCreateRole('domain-lead', ['create_task', 'edit_task', 'review_submissions']);
+    } else {
+        roleId = await getOrCreateRole('member', []);
     }
-    if (email === 'mrsrikart@gmail.com' || email === 'admin@taskmaster.pro') {
-      return 'admin';
-    }
-    if (email === 'lead@taskmaster.pro') {
-      return 'domain-lead';
-    }
-    return 'member';
+    return roleId;
   }
+
+  const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+    const userEmail = user.email || '';
+    const roleId = await getRoleIdFromEmail(userEmail);
+
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        id: user.uid,
+        name: name || user.displayName,
+        email: user.email,
+        avatarUrl: user.photoURL,
+        roleId: roleId,
+      });
+    } else {
+      await setDoc(userRef, { roleId: roleId }, { merge: true });
+    }
+
+    toast({
+      title: 'Login Successful',
+      description: `Welcome back, ${name || user.displayName}!`,
+    });
+    router.push('/dashboard');
+  };
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
-
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      const userEmail = user.email || '';
-      const role = getRoleFromEmail(userEmail);
-
-      if (!userSnap.exists()) {
-        // New user
-        await setDoc(userRef, {
-          id: user.uid,
-          name: user.displayName,
-          email: user.email,
-          avatarUrl: user.photoURL,
-          role: role,
-        });
-      } else {
-        // Existing user, update role just in case it changed
-        await setDoc(userRef, { role: role }, { merge: true });
-      }
-
-      toast({
-        title: 'Login Successful',
-        description: `Welcome back, ${user.displayName}!`,
-      });
-
-      router.push('/dashboard');
+      await handleAuth(result.user);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message,
-      });
+      toast({ variant: 'destructive', title: 'Login Failed', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -107,29 +117,9 @@ export function LoginForm() {
     const auth = getAuth(app);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      const role = getRoleFromEmail(values.email);
-
-      await setDoc(doc(db, 'users', user.uid), {
-        id: user.uid,
-        name: values.name,
-        email: user.email,
-        avatarUrl: null,
-        role: role,
-      });
-
-      toast({
-        title: 'Account Created',
-        description: 'You have successfully signed up!',
-      });
-      router.push('/dashboard');
+      await handleAuth(userCredential.user, values.name);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign Up Failed',
-        description: error.message,
-      });
+      toast({ variant: 'destructive', title: 'Sign Up Failed', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -139,18 +129,10 @@ export function LoginForm() {
     setIsLoading(true);
     const auth = getAuth(app);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back!',
-      });
-      router.push('/dashboard');
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      await handleAuth(userCredential.user);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign In Failed',
-        description: error.message,
-      });
+      toast({ variant: 'destructive', title: 'Sign In Failed', description: error.message });
     } finally {
       setIsLoading(false);
     }
