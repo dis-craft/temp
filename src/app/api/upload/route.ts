@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     }
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const key = `${uuidv4()}-${file.name}`;
+    // Encode the filename to handle special characters safely
+    const key = `${uuidv4()}-${encodeURIComponent(file.name)}`;
     const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
 
     if (!workerUrl) {
