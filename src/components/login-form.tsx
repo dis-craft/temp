@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -34,11 +34,18 @@ async function getOrCreateRole(roleName: string, permissions: Permission[]): Pro
     const querySnapshot = await getDocs(q);
 
     if (!querySnapshot.empty) {
-        return querySnapshot.docs[0].id;
+        // If role exists, still ensure it has the correct permissions
+        const roleDoc = querySnapshot.docs[0];
+        const roleData = roleDoc.data() as Role;
+        const newPermissions = [...new Set([...(roleData.permissions || []), ...permissions])];
+        if (newPermissions.length > (roleData.permissions || []).length) {
+            await updateDoc(roleDoc.ref, { permissions: newPermissions });
+        }
+        return roleDoc.id;
     } else {
         const newRole: Omit<Role, 'id'> = { name: roleName, permissions: permissions || [] };
         const docRef = await addDoc(rolesRef, newRole);
-        await setDoc(doc(db, 'roles', docRef.id), { id: docRef.id }, { merge: true });
+        await updateDoc(docRef, { id: docRef.id });
         return docRef.id;
     }
 }
@@ -87,6 +94,9 @@ export function LoginForm() {
         avatarUrl: user.photoURL,
         roleId: roleId,
       });
+    } else {
+      // If user exists, still ensure their role is correctly set up
+      await getRoleIdFromEmail(userEmail);
     }
 
     toast({

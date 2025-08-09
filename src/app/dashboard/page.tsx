@@ -40,31 +40,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   React.useEffect(() => {
     const auth = getAuth(app);
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userRef);
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
-          if (userData.roleId) {
-            const roleRef = doc(db, 'roles', userData.roleId);
-            const roleDoc = await getDoc(roleRef);
-            if (roleDoc.exists()) {
-              userData.role = roleDoc.data() as Role;
+        
+        const userUnsubscribe = onSnapshot(userRef, (userDoc) => {
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as User;
+            
+            if (userData.roleId) {
+              const roleRef = doc(db, 'roles', userData.roleId);
+              const roleUnsubscribe = onSnapshot(roleRef, (roleDoc) => {
+                if (roleDoc.exists()) {
+                  userData.role = roleDoc.data() as Role;
+                }
+                setUser(userData);
+                setLoading(false);
+              });
+              return () => roleUnsubscribe();
+            } else {
+              setUser(userData);
+              setLoading(false);
             }
+          } else {
+            // This case might happen briefly if the user document hasn't been created yet
+             setLoading(false);
           }
-          setUser(userData);
-        } else {
-          setUser(null);
-          router.push('/login');
-        }
+        });
+
+        return () => userUnsubscribe();
+
       } else {
         router.push('/login');
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => authUnsubscribe();
   }, [router]);
   
   if (loading) {
@@ -76,7 +88,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   if (!user) {
-    return null; // or a fallback UI
+    // This can happen if the user is logged out or their doc doesn't exist
+    // Redirecting is handled in the useEffect, so we can show a loader or null
+    return (
+        <div className="flex h-screen w-screen items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
   }
 
   return (
