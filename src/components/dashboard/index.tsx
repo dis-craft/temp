@@ -8,15 +8,6 @@ import { db, auth } from '@/lib/firebase';
 import type { Task, User as UserType } from '@/lib/types';
 import TaskCard from './task-card';
 import { CreateTaskModal } from './create-task-modal';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
@@ -92,7 +83,7 @@ export default function Dashboard() {
   const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
     try {
       const taskWithDomain = { ...newTask, domain: currentUser?.domain };
-      await addDoc(collection(db, 'tasks'), taskWithDomain);
+      const docRef = await addDoc(collection(db, 'tasks'), taskWithDomain);
       
       toast({
         title: 'Task Created!',
@@ -104,7 +95,7 @@ export default function Dashboard() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            task: taskWithDomain,
+            task: {...taskWithDomain, id: docRef.id},
             assignees: newTask.assignees,
             domainLeadEmail: currentUser?.email
           }),
@@ -194,47 +185,27 @@ export default function Dashboard() {
     <div className="w-full h-full flex flex-col">
       <header className="flex items-center justify-between pb-4 border-b">
         <div>
-          <h1 className="text-3xl font-bold font-headline">{currentUser.domain ? `${currentUser.domain} Domain` : 'Dashboard'}</h1>
-          <p className="text-muted-foreground">Welcome back, {currentUser.name}.</p>
+          <h2 className="text-2xl font-semibold font-headline">Tasks Overview</h2>
+           <p className="text-muted-foreground">Manage and track all your team's tasks.</p>
         </div>
-        <div className="flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={currentUser.avatarUrl || undefined} alt={currentUser.name || ''} />
-                  <AvatarFallback>{currentUser.name?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                {currentUser.name}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{currentUser.role}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => auth.signOut()}>
-                  Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {canCreateTask && (
-            <Button onClick={() => setCreateModalOpen(true)}>
-              <PlusCircle className="mr-2" />
-              Create Task
-            </Button>
-          )}
-        </div>
+        {canCreateTask && (
+          <Button onClick={() => setCreateModalOpen(true)}>
+            <PlusCircle className="mr-2" />
+            Create Task
+          </Button>
+        )}
       </header>
       
-      <div className="py-6">
-        <h2 className="text-2xl font-semibold font-headline">Tasks</h2>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-2 -mr-2">
+      <div className="flex-1 overflow-y-auto pt-6 pr-2 -mr-2">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleTasks.map((task) => (
             <TaskCard key={task.id} task={task} currentUser={currentUser} allUsers={allUsers} onUpdateTask={updateTask} />
           ))}
+          {visibleTasks.length === 0 && (
+            <div className="col-span-full text-center text-muted-foreground py-10">
+              No tasks assigned yet.
+            </div>
+          )}
         </div>
       </div>
 

@@ -3,7 +3,6 @@
 import * as React from 'react';
 import {
   LayoutDashboard,
-  ListTodo,
   Settings,
   ShieldCheck,
   Users,
@@ -18,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarProvider,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/icons';
 import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -26,6 +26,16 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import type { User } from '@/lib/types';
 import { doc, onSnapshot } from 'firebase/firestore';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Button } from '../ui/button';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -97,10 +107,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </SidebarMenuButton>
                  </Link>
               </SidebarMenuItem>
+              {isSuperAdmin && (
+                 <SidebarMenuItem>
+                  <Link href="/dashboard/roles" className='w-full'>
+                      <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
+                        <ShieldCheck />
+                        <span>Manage Roles</span>
+                      </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
         <SidebarInset className="bg-background flex-1">
+          <header className="flex items-center justify-between p-4 border-b md:p-6 lg:p-8">
+            <div className='flex items-center gap-2'>
+                <SidebarTrigger className='md:hidden'/>
+                <div>
+                    <h1 className="text-2xl font-bold font-headline md:text-3xl">{user.domain ? `${user.domain} Domain` : 'Dashboard'}</h1>
+                    <p className="text-muted-foreground hidden md:block">Welcome back, {user.name}.</p>
+                </div>
+            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatarUrl || undefined} alt={user.name || ''} />
+                        <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>{user.role}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => getAuth(app).signOut()}>
+                    Sign Out
+                </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+          </header>
           <main className="h-full p-4 md:p-6 lg:p-8">
             {children}
           </main>
