@@ -25,11 +25,11 @@ import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth
 import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import type { User, Role } from '@/lib/types';
+import type { User, Role, Permission } from '@/lib/types';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 
-const hasPermission = (user: User, permission: 'manage_roles') => {
-    return user.role?.permissions.includes(permission) ?? false;
+const hasPermission = (user: User, permission: Permission) => {
+    return user.role?.permissions?.includes(permission) ?? false;
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

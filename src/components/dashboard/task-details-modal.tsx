@@ -30,7 +30,7 @@ interface TaskDetailsModalProps {
 }
 
 const hasPermission = (user: User, permission: Permission) => {
-    return user.role?.permissions.includes(permission) ?? false;
+    return user.role?.permissions?.includes(permission) ?? false;
 }
 
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
@@ -41,7 +41,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   
   const canEditTask = hasPermission(currentUser, 'edit_task');
   const canReviewSubmissions = hasPermission(currentUser, 'review_submissions');
-  const isMember = currentUser.role?.name === 'member';
+  const isMember = !canEditTask && !canReviewSubmissions;
 
   if (!task) return null;
 
@@ -225,7 +225,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
               </div>
             </TabsContent>
             <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-6">
-                {canReviewSubmissions && !isMember && (
+                {canReviewSubmissions && (
                      <div className="space-y-4">
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>

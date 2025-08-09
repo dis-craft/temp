@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Role } from '@/lib/types';
+import type { Role, Permission } from '@/lib/types';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -28,7 +28,7 @@ const signInSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-async function getOrCreateRole(roleName: string, permissions: string[]): Promise<string> {
+async function getOrCreateRole(roleName: string, permissions: Permission[]): Promise<string> {
     const rolesRef = collection(db, 'roles');
     const q = query(rolesRef, where('name', '==', roleName));
     const querySnapshot = await getDocs(q);
@@ -36,7 +36,7 @@ async function getOrCreateRole(roleName: string, permissions: string[]): Promise
     if (!querySnapshot.empty) {
         return querySnapshot.docs[0].id;
     } else {
-        const newRole: Omit<Role, 'id'> = { name: roleName, permissions: permissions as any };
+        const newRole: Omit<Role, 'id'> = { name: roleName, permissions: permissions || [] };
         const docRef = await addDoc(rolesRef, newRole);
         await setDoc(doc(db, 'roles', docRef.id), { id: docRef.id }, { merge: true });
         return docRef.id;
@@ -77,9 +77,9 @@ export function LoginForm() {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
     const userEmail = user.email || '';
-    const roleId = await getRoleIdFromEmail(userEmail);
-
+    
     if (!userSnap.exists()) {
+      const roleId = await getRoleIdFromEmail(userEmail);
       await setDoc(userRef, {
         id: user.uid,
         name: name || user.displayName,
@@ -87,8 +87,6 @@ export function LoginForm() {
         avatarUrl: user.photoURL,
         roleId: roleId,
       });
-    } else {
-      await setDoc(userRef, { roleId: roleId }, { merge: true });
     }
 
     toast({
