@@ -54,6 +54,24 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
       attachment: undefined, // Don't pre-fill file input
     },
   });
+  
+  const assignableUsers = React.useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'domain-lead') {
+        // Domain leads can only assign to members of their domain
+        return allUsers.filter(u => u.role === 'member' && u.domain === currentUser.domain);
+    }
+    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
+      // If task has a domain, only show members of that domain
+      if (task.domain) {
+        return allUsers.filter(u => u.role === 'member' && u.domain === task.domain);
+      }
+      // Otherwise, show all members
+      return allUsers.filter(u => u.role === 'member');
+    }
+    return [];
+  }, [currentUser, allUsers, task.domain]);
+
 
   React.useEffect(() => {
     if (isOpen) {
@@ -84,7 +102,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
     try {
       const result = await suggestAssignees({ taskDescription: descriptionValue });
       const suggestedUserIds = result.suggestedAssignees
-        .map(name => allUsers.find(u => u.name === name)?.id)
+        .map(name => assignableUsers.find(u => u.name === name)?.id)
         .filter((id): id is string => !!id);
       
       form.setValue('assignees', suggestedUserIds);
@@ -142,7 +160,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
   };
 
   const onSubmit = async (data: TaskFormValues) => {
-    const assignees = allUsers.filter(u => data.assignees.includes(u.id));
+    const assignees = assignableUsers.filter(u => data.assignees.includes(u.id));
     let attachmentKey = task.attachment; // Keep old attachment by default
 
     if (data.attachment && data.attachment[0]) {
@@ -218,7 +236,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
                     <FormItem>
                       <FormLabel>Assignees</FormLabel>
                        <div className="grid grid-cols-2 gap-4">
-                          {allUsers.map((user) => (
+                          {assignableUsers.map((user) => (
                             <FormField
                               key={user.id}
                               control={form.control}

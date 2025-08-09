@@ -4,6 +4,7 @@ export interface User {
   email: string | null;
   avatarUrl: string | null;
   role: 'super-admin' | 'admin' | 'domain-lead' | 'member';
+  domain?: 'Mechanical' | 'Electrical' | 'Software';
 }
 
 export interface Comment {
@@ -33,4 +34,5 @@ export interface Task {
   comments: Comment[];
   submissions: Submission[];
   attachment?: string;
+  domain?: 'Mechanical' | 'Electrical' | 'Software';
 }

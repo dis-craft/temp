@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import type { User } from '@/lib/types';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -26,6 +27,14 @@ const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
 });
+
+const domainLeadsConfig: Record<string, { role: User['role']; domain: User['domain'] }> = {
+    'mrsrikart@gmail.com': { role: 'super-admin', domain: undefined },
+    'admin@taskmaster.pro': { role: 'admin', domain: undefined },
+    '5245929.class9.srikar@gmail.com': { role: 'domain-lead', domain: 'Mechanical' },
+    'cadmvj69@gmail.com': { role: 'domain-lead', domain: 'Electrical' },
+    'cadpwdis12345678atcad@gmail.com': { role: 'domain-lead', domain: 'Software' },
+};
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -42,11 +51,8 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   });
 
-  const getRoleForEmail = (email: string): 'super-admin' | 'admin' | 'domain-lead' | 'member' => {
-    if (email === 'mrsrikart@gmail.com') return 'super-admin';
-    if (email === 'admin@taskmaster.pro') return 'admin';
-    if (email === 'lead@taskmaster.pro') return 'domain-lead';
-    return 'member';
+  const getRoleForEmail = (email: string): { role: User['role']; domain?: User['domain'] } => {
+    return domainLeadsConfig[email] || { role: 'member', domain: undefined };
   };
 
   const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
@@ -54,14 +60,18 @@ export function LoginForm() {
     const userSnap = await getDoc(userRef);
     
     if (!userSnap.exists()) {
-      const role = getRoleForEmail(user.email || '');
-      await setDoc(userRef, {
+      const { role, domain } = getRoleForEmail(user.email || '');
+      const newUser: User = {
         id: user.uid,
         name: name || user.displayName,
         email: user.email,
         avatarUrl: user.photoURL,
         role: role,
-      });
+      };
+      if (domain) {
+        newUser.domain = domain;
+      }
+      await setDoc(userRef, newUser);
     }
     toast({
       title: 'Login Successful',

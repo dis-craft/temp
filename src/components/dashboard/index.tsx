@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { Task, User as UserType } from '@/lib/types';
 import TaskCard from './task-card';
@@ -30,40 +30,61 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const usersQuery = collection(db, 'users');
-    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-        const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType));
-        setAllUsers(usersData);
-    });
-
-    const q = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
-    const unsubscribeTasks = onSnapshot(q, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-      setTasks(tasksData);
-    });
-
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
         if (user) {
            const userDoc = await getDoc(doc(db, 'users', user.uid));
            if(userDoc.exists()) {
-              setCurrentUser({ id: user.uid, ...userDoc.data() } as UserType);
+              const userData = { id: user.uid, ...userDoc.data() } as UserType;
+              setCurrentUser(userData);
+
+              // Setup listeners after we have the user
+              setupListeners(userData);
            }
         } else {
             setCurrentUser(null);
         }
         setLoadingUser(false);
     });
+    
+    const setupListeners = (user: UserType) => {
+        // Users listener
+        let usersQuery;
+        if (user.role === 'domain-lead' && user.domain) {
+            usersQuery = query(collection(db, 'users'), where('domain', '==', user.domain));
+        } else {
+            usersQuery = query(collection(db, 'users'));
+        }
+        const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType));
+            setAllUsers(usersData);
+        });
+
+        // Tasks listener
+        let tasksQuery;
+        if (user.role === 'domain-lead' && user.domain) {
+            tasksQuery = query(collection(db, 'tasks'), where('domain', '==', user.domain), orderBy('dueDate', 'desc'));
+        } else {
+             tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
+        }
+        const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+          const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+          setTasks(tasksData);
+        });
+
+        return () => {
+            unsubscribeUsers();
+            unsubscribeTasks();
+        };
+    }
 
     return () => {
-      unsubscribeTasks();
-      unsubscribeUsers();
       unsubscribeAuth();
     }
   }, []);
   
   const addTask = async (newTask: Omit<Task, 'id'>) => {
     try {
-      await addDoc(collection(db, 'tasks'), newTask);
+      await addDoc(collection(db, 'tasks'), { ...newTask, domain: currentUser?.domain });
       toast({
         title: 'Task Created!',
         description: `Task "${newTask.title}" has been successfully created.`,
@@ -106,12 +127,26 @@ export default function Dashboard() {
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
-    if (hasPermission(['view_all_tasks'])) {
-        return tasks;
+    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
+      return tasks;
     }
+    if (currentUser.role === 'domain-lead') {
+      return tasks.filter(task => task.domain === currentUser.domain);
+    }
+    // For members, filter tasks they are assigned to
     return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
   }, [currentUser, tasks]);
   
+  const assignableUsers = React.useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'domain-lead') {
+        // Domain leads can only assign to members of their domain
+        return allUsers.filter(u => u.role === 'member' && u.domain === currentUser.domain);
+    }
+    // Admins and super-admins can assign to any member
+    return allUsers.filter(u => u.role === 'member');
+  }, [currentUser, allUsers]);
+
   if (loadingUser) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -134,7 +169,7 @@ export default function Dashboard() {
     <div className="w-full h-full flex flex-col">
       <header className="flex items-center justify-between pb-4 border-b">
         <div>
-          <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
+          <h1 className="text-3xl font-bold font-headline">{currentUser.domain ? `${currentUser.domain} Domain` : 'Dashboard'}</h1>
           <p className="text-muted-foreground">Welcome back, {currentUser.name}.</p>
         </div>
         <div className="flex items-center gap-4">
@@ -167,7 +202,7 @@ export default function Dashboard() {
       </header>
       
       <div className="py-6">
-        <h2 className="text-2xl font-semibold font-headline">Your Tasks</h2>
+        <h2 className="text-2xl font-semibold font-headline">Tasks</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-2 -mr-2">
@@ -182,7 +217,7 @@ export default function Dashboard() {
         isOpen={isCreateModalOpen} 
         setIsOpen={setCreateModalOpen}
         onCreateTask={addTask}
-        allUsers={allUsers}
+        allUsers={assignableUsers}
         currentUser={currentUser}
       />
     </div>

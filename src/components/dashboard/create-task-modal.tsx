@@ -37,7 +37,7 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 interface CreateTaskModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  onCreateTask: (newTask: Omit<Task, 'id'>) => void;
+  onCreateTask: (newTask: Omit<Task, 'id' | 'domain'>) => void;
   allUsers: User[];
   currentUser: User | null;
 }
@@ -140,7 +140,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
       if (!attachmentKey) return; // Stop submission if upload fails
     }
 
-    const newTask: Omit<Task, 'id'> = {
+    const newTask: Omit<Task, 'id' | 'domain'> = {
       title: data.title,
       description: data.description,
       dueDate: data.dueDate.toISOString(),
