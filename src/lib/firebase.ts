@@ -7,14 +7,8 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration is stored in an environment variable.
 // This is a public configuration and is safe to expose on the client side.
-let firebaseConfig: any;
+const firebaseConfig = JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG || '{}');
 
-try {
-  firebaseConfig = JSON.parse(process.env.NEXT_PUBLIC_FIREBASE_CONFIG || '{}');
-} catch (e) {
-  console.error("Could not parse NEXT_PUBLIC_FIREBASE_CONFIG. Please ensure it is a valid JSON string.");
-  firebaseConfig = {};
-}
 
 // Initialize Firebase
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);

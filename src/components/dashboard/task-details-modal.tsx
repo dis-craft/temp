@@ -30,7 +30,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { v4 as uuidv4 } from 'uuid';
 
 
 interface TaskDetailsModalProps {
@@ -138,53 +137,40 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const handleFileUpload = async () => {
     if (!fileToUpload) return;
     setIsUploading(true);
-  
+    const formData = new FormData();
+    formData.append('file', fileToUpload);
+
     try {
-      const uniqueFilename = `${uuidv4()}-${fileToUpload.name}`;
-  
-      // Get a presigned URL from our API
-      const presignedUrlResponse = await fetch('/api/presigned-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: uniqueFilename,
-          contentType: fileToUpload.type,
-        }),
-      });
-  
-      if (!presignedUrlResponse.ok) {
-        const errorData = await presignedUrlResponse.json();
-        throw new Error(errorData.error || 'Failed to get presigned URL.');
-      }
-  
-      const { url, key } = await presignedUrlResponse.json();
-  
-      // Upload the file directly to R2 using the presigned URL
-      const uploadResponse = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': fileToUpload.type },
-        body: fileToUpload,
-      });
-  
-      if (!uploadResponse.ok) {
-        throw new Error('File upload to R2 failed.');
-      }
-  
-      const newSubmission: Submission = {
-        id: `sub-${Date.now()}`,
-        author: currentUser,
-        file: key, // Store the key
-        timestamp: new Date().toISOString(),
-        qualityScore: 0,
-      };
-      
-      const taskRef = doc(db, 'tasks', task.id);
-      await updateDoc(taskRef, {
-        submissions: arrayUnion(newSubmission)
-      });
-  
-      toast({ title: "File submitted successfully!" });
-  
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {
+                'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+           const errorData = await response.json();
+           throw new Error(errorData.error || 'File upload failed');
+        }
+
+        const result = await response.json();
+
+        const newSubmission: Submission = {
+            id: `sub-${Date.now()}`,
+            author: currentUser,
+            file: result.filePath,
+            timestamp: new Date().toISOString(),
+            qualityScore: 0,
+        };
+        
+        const taskRef = doc(db, 'tasks', task.id);
+        await updateDoc(taskRef, {
+            submissions: arrayUnion(newSubmission)
+        });
+
+        toast({ title: "File submitted successfully!" });
+
     } catch (error) {
        console.error('Upload error:', error);
        toast({
@@ -221,30 +207,15 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = async (fileKey?: string) => {
     if (!fileKey) return;
-  
-    try {
-        // Get a presigned URL for downloading
-        const response = await fetch('/api/presigned-url', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: fileKey, action: 'download' }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to get download link.');
-        }
-
-        const { url } = await response.json();
-        window.open(url, '_blank');
-
-    } catch (error) {
-        console.error('Download error:', error);
-        toast({
-            variant: 'destructive',
-            title: 'Download Failed',
-            description: (error as Error).message,
-        });
+    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
+    if (workerUrl) {
+      window.open(`${workerUrl}/${fileKey}`, '_blank');
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Download Failed',
+        description: 'Worker URL is not configured.',
+      });
     }
   };
 
