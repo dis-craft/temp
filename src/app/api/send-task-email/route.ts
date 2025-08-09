@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No valid assignee emails found.' }, { status: 400 });
   }
 
-  const appUrl = 'https://vyomsetuclub.vercel.app';
+  const appUrl = 'https://vyomsetu-club.vercel.app';
   const taskUrl = `${appUrl}/dashboard`; 
   
   let attachmentLink = '';
