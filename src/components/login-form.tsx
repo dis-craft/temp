@@ -43,8 +43,8 @@ export function LoginForm() {
   });
 
   const getRoleForEmail = (email: string): 'super-admin' | 'admin' | 'domain-lead' | 'member' => {
-    if (email === 'super-admin@taskmaster.pro') return 'super-admin';
-    if (email === 'admin@taskmaster.pro' || email === 'mrsrikart@gmail.com') return 'admin';
+    if (email === 'mrsrikart@gmail.com') return 'super-admin';
+    if (email === 'admin@taskmaster.pro') return 'admin';
     if (email === 'lead@taskmaster.pro') return 'domain-lead';
     return 'member';
   };
