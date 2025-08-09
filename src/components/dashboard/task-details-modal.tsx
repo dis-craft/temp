@@ -147,7 +147,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
            headers: {
             'X-User-Name': currentUser?.name || 'unknown-user',
             'X-Task-Title': task.title || 'untitled-task',
-            'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
+            'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
           },
           body: formData,
       });
