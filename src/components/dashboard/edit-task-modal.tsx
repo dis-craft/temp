@@ -131,7 +131,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
         const response = await fetch('/api/upload', {
             method: 'POST',
              headers: {
-                'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
+                'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
             },
             body: formData,
         });
