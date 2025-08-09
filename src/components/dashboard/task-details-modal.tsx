@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2 } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2, BellRing } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -47,19 +47,20 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const [isUploading, setIsUploading] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
   const [fileToUpload, setFileToUpload] = React.useState<File | null>(null);
+  const [isSendingReminder, setIsSendingReminder] = React.useState(false);
 
   if (!task) return null;
 
   const assignees = task.assignees || [];
   const userSubmissions = task.submissions.filter(s => s.author.id === currentUser.id);
   
-  const hasPermission = (permission: 'edit_task' | 'review_submissions' | 'submit_work') => {
+  const hasPermission = (permission: 'edit_task' | 'review_submissions' | 'submit_work' | 'send_reminders') => {
     if (!currentUser) return false;
     const userRole = currentUser.role;
     switch (permission) {
         case 'edit_task':
-            return userRole === 'super-admin' || userRole === 'admin' || userRole === 'domain-lead';
         case 'review_submissions':
+        case 'send_reminders':
             return userRole === 'super-admin' || userRole === 'admin' || userRole === 'domain-lead';
         case 'submit_work':
             return userRole === 'super-admin' || userRole === 'admin' || userRole === 'member';
@@ -71,6 +72,49 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const canEditTask = hasPermission('edit_task');
   const canReviewSubmissions = hasPermission('review_submissions');
   const canSubmitWork = hasPermission('submit_work');
+  const canSendReminders = hasPermission('send_reminders');
+  
+  const handleSendReminder = async () => {
+    setIsSendingReminder(true);
+    const submittedAssigneeIds = new Set(task.submissions.map(s => s.author.id));
+    const unsubmittedMembers = task.assignees.filter(a => !submittedAssigneeIds.has(a.id));
+
+    if (unsubmittedMembers.length === 0) {
+      toast({ title: 'All members have submitted their work.' });
+      setIsSendingReminder(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/send-reminder-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task,
+          unsubmittedMembers,
+          domainLeadEmail: currentUser.email,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send reminder.');
+      }
+      
+      toast({ title: 'Reminder Sent!', description: 'Emails have been sent to unsubmitted members.' });
+
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Reminder Failed',
+        description: (error as Error).message,
+      });
+    } finally {
+      setIsSendingReminder(false);
+    }
+  };
+
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
@@ -187,12 +231,20 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         <DialogHeader>
           <div className="flex justify-between items-start">
             <DialogTitle className="font-headline text-2xl pr-12">{task.title}</DialogTitle>
-            {canEditTask && (
-                <Button variant="outline" size="icon" onClick={() => { setIsOpen(false); setEditModalOpen(true); }}>
-                  <Pencil className="h-4 w-4" />
-                  <span className="sr-only">Edit Task</span>
+            <div className="flex items-center gap-2">
+              {canSendReminders && (
+                <Button variant="outline" size="sm" onClick={handleSendReminder} disabled={isSendingReminder}>
+                  {isSendingReminder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellRing className="mr-2 h-4 w-4" />}
+                  Remind Unsubmitted
                 </Button>
-            )}
+              )}
+              {canEditTask && (
+                  <Button variant="outline" size="icon" onClick={() => { setIsOpen(false); setEditModalOpen(true); }}>
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Edit Task</span>
+                  </Button>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-4 text-sm text-muted-foreground pt-1">
             <div className="flex items-center gap-2">
