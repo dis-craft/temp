@@ -104,7 +104,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
         const response = await fetch('/api/upload', {
             method: 'POST',
             headers: {
-                'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
+                'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
             },
             body: formData,
         });

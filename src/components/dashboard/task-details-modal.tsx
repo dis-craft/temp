@@ -144,7 +144,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         const response = await fetch('/api/upload', {
             method: 'POST',
             headers: {
-                'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
+                'X-Custom-Auth-Key': process.env.JWT_SECRET || '',
             },
             body: formData,
         });
@@ -207,7 +207,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = async (fileKey?: string) => {
     if (!fileKey) return;
-    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
+    const workerUrl = process.env.NEXT_PUBLIC_R2_DOWNLOAD_URL;
     if (workerUrl) {
       window.open(`${workerUrl}/${fileKey}`, '_blank');
     } else {
