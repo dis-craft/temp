@@ -15,17 +15,17 @@ export async function POST(req: NextRequest) {
 
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const key = `${uuidv4()}-${file.name}`;
-    const workerUrl = process.env.R2_WORKER_URL;
+    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
 
     if (!workerUrl) {
-      console.error('R2_WORKER_URL is not set.');
+      console.error('NEXT_PUBLIC_R2_WORKER_URL is not set.');
       return NextResponse.json(
         {error: 'Server configuration error.'},
         {status: 500}
       );
     }
     
-    const response = await fetch(`${workerUrl}/upload`, {
+    const response = await fetch(workerUrl, {
       method: 'POST',
       headers: {
         'Content-Type': file.type,
