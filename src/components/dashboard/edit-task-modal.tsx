@@ -134,6 +134,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
           headers: {
             'X-User-Name': currentUser?.name || 'unknown-user',
             'X-Task-Title': titleValue || 'untitled-task',
+            'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
           },
           body: formData,
       });

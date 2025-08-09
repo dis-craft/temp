@@ -107,6 +107,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
           headers: {
             'X-User-Name': currentUser?.name || 'unknown-user',
             'X-Task-Title': titleValue || 'untitled-task',
+            'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '',
           },
           body: formData,
       });
