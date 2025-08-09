@@ -62,13 +62,23 @@ export default function Dashboard() {
         // Tasks listener
         let tasksQuery;
         if (user.role === 'domain-lead' && user.domain) {
-            tasksQuery = query(collection(db, 'tasks'), where('domain', '==', user.domain), orderBy('dueDate', 'desc'));
+            // This query requires a composite index. The app will crash if it's not created.
+            // Temporarily removing order to prevent crash.
+            // To re-enable sorting, create the index in Firestore using the link from the error message.
+            tasksQuery = query(collection(db, 'tasks'), where('domain', '==', user.domain));
         } else {
              tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
         }
         const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
           const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
           setTasks(tasksData);
+        }, (error) => {
+            console.error("Error fetching tasks:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error loading tasks',
+                description: 'Could not load tasks. You might be missing a required Firestore index. Please check the console for errors.'
+            })
         });
 
         return () => {
@@ -80,9 +90,9 @@ export default function Dashboard() {
     return () => {
       unsubscribeAuth();
     }
-  }, []);
+  }, [toast]);
   
-  const addTask = async (newTask: Omit<Task, 'id'>) => {
+  const addTask = async (newTask: Omit<Task, 'id' | 'domain'>) => {
     try {
       await addDoc(collection(db, 'tasks'), { ...newTask, domain: currentUser?.domain });
       toast({
@@ -144,7 +154,10 @@ export default function Dashboard() {
         return allUsers.filter(u => u.role === 'member' && u.domain === currentUser.domain);
     }
     // Admins and super-admins can assign to any member
-    return allUsers.filter(u => u.role === 'member');
+    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
+        return allUsers.filter(u => u.role === 'member');
+    }
+    return [];
   }, [currentUser, allUsers]);
 
   if (loadingUser) {
