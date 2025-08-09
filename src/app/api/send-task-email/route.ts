@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
 
   const mailOptions = {
-    from: `"TaskMaster Pro" <${process.env.GMAIL_USER}>`,
+    from: `"vyomsetu-club" <${process.env.GMAIL_USER}>`,
     to: assigneeEmails.join(','),
     cc: domainLeadEmail,
     subject: `New Task Assigned: ${task.title}`,
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
           </p>
            <p style="font-size: 14px; color: #555;">Please login to Vyomsetu official website to view full details.</p>
           <p style="font-size: 12px; color: #999; margin-top: 20px;">
-            This is an automated notification from TaskMaster Pro.
+            This is an automated notification from vyomsetu-club.
           </p>
         </div>
       </div>

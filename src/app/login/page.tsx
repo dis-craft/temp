@@ -9,7 +9,7 @@ export default function LoginPage() {
                 <div className="flex justify-center mb-6">
                     <div className="flex items-center gap-2">
                         <Logo className="size-8 text-primary" />
-                        <span className="text-2xl font-bold font-headline text-primary">TaskMaster Pro</span>
+                        <span className="text-2xl font-bold font-headline text-primary">vyomsetu-club</span>
                     </div>
                 </div>
                 <h1 className="text-3xl font-bold text-center mb-2 font-headline">Welcome</h1>

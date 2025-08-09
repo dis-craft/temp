@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const taskUrl = `${appUrl}/dashboard`;
 
   const mailOptions = {
-    from: `"TaskMaster Pro" <${process.env.GMAIL_USER}>`,
+    from: `"vyomsetu-club" <${process.env.GMAIL_USER}>`,
     to: memberEmails.join(','),
     cc: domainLeadEmail,
     subject: `Reminder: Task Submission Required for "${task.title}"`,
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           </p>
           <p style="font-size: 14px; color: #555;">Please complete your submission as soon as possible.</p>
           <p style="font-size: 12px; color: #999; margin-top: 20px;">
-            This is an automated notification from TaskMaster Pro.
+            This is an automated notification from vyomsetu-club.
           </p>
         </div>
       </div>

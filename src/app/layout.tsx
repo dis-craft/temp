@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'TaskMaster Pro',
+  title: 'vyomsetu-club',
   description: 'A professional task management application.',
 };
 

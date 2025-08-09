@@ -84,7 +84,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SidebarHeader>
             <div className="flex items-center gap-2 p-2">
               <Logo className="size-6 text-primary" />
-              <span className="text-lg font-bold font-headline text-primary">TaskMaster Pro</span>
+              <span className="text-lg font-bold font-headline text-primary">vyomsetu-club</span>
             </div>
           </SidebarHeader>
           <SidebarContent>
