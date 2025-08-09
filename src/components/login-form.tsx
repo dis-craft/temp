@@ -16,6 +16,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { User } from '@/lib/types';
+import { domainConfig, specialRolesConfig } from '@/lib/domain-config';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -27,14 +28,6 @@ const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
 });
-
-const domainLeadsConfig: Record<string, { role: User['role']; domain: User['domain'] }> = {
-    'mrsrikart@gmail.com': { role: 'super-admin', domain: undefined },
-    'admin@taskmaster.pro': { role: 'admin', domain: undefined },
-    '5245929.class9.srikar@gmail.com': { role: 'domain-lead', domain: 'Mechanical' },
-    'cadmvj69@gmail.com': { role: 'domain-lead', domain: 'Electrical' },
-    'cadpwdis12345678atcad@gmail.com': { role: 'domain-lead', domain: 'Software' },
-};
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -52,7 +45,24 @@ export function LoginForm() {
   });
 
   const getRoleForEmail = (email: string): { role: User['role']; domain?: User['domain'] } => {
-    return domainLeadsConfig[email] || { role: 'member', domain: undefined };
+    // Check for special roles first (super-admin, admin)
+    if (specialRolesConfig[email]) {
+      return { role: specialRolesConfig[email] };
+    }
+
+    // Check domain leads and members
+    for (const domainName in domainConfig) {
+        const domain = domainConfig[domainName as keyof typeof domainConfig];
+        if (domain.lead === email) {
+            return { role: 'domain-lead', domain: domainName as User['domain'] };
+        }
+        if (domain.members.includes(email)) {
+            return { role: 'member', domain: domainName as User['domain'] };
+        }
+    }
+    
+    // Default to member with no domain if not found anywhere
+    return { role: 'member', domain: undefined };
   };
 
   const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
@@ -67,10 +77,8 @@ export function LoginForm() {
         email: user.email,
         avatarUrl: user.photoURL,
         role: role,
+        domain: domain,
       };
-      if (domain) {
-        newUser.domain = domain;
-      }
       await setDoc(userRef, newUser);
     }
     toast({
