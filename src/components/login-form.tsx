@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, addDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Role, Permission } from '@/lib/types';
+import type { UserRole } from '@/lib/types';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -27,31 +27,6 @@ const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
 });
-
-async function getOrCreateRole(roleName: string, permissions: Permission[]): Promise<string> {
-    const rolesRef = collection(db, 'roles');
-    const q = query(rolesRef, where('name', '==', roleName));
-    const querySnapshot = await getDocs(q);
-
-    if (!querySnapshot.empty) {
-        const roleDoc = querySnapshot.docs[0];
-        // Ensure existing role has all required permissions
-        const roleData = roleDoc.data() as Role;
-        const currentPermissions = roleData.permissions || [];
-        const missingPermissions = permissions.filter(p => !currentPermissions.includes(p));
-
-        if(missingPermissions.length > 0) {
-            await updateDoc(roleDoc.ref, { permissions: [...currentPermissions, ...missingPermissions] });
-        }
-        return roleDoc.id;
-    } else {
-        const newRole: Omit<Role, 'id'> = { name: roleName, permissions: permissions || [] };
-        const docRef = await addDoc(rolesRef, newRole);
-        await updateDoc(docRef, { id: docRef.id });
-        return docRef.id;
-    }
-}
-
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -68,39 +43,33 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   });
 
-  const getRoleIdFromEmail = async (email: string): Promise<string> => {
-    let roleId = '';
+  const getRoleFromEmail = (email: string): UserRole => {
     if (email === 'super-admin@taskmaster.pro') {
-      roleId = await getOrCreateRole('super-admin', ['create_task', 'edit_task', 'review_submissions', 'manage_roles']);
-    } else if (email === 'mrsrikart@gmail.com' || email === 'admin@taskmaster.pro') {
-      roleId = await getOrCreateRole('admin', ['create_task', 'edit_task', 'review_submissions']);
-    } else if (email === 'lead@taskmaster.pro') {
-        roleId = await getOrCreateRole('domain-lead', ['create_task', 'edit_task', 'review_submissions']);
-    } else {
-        roleId = await getOrCreateRole('member', []);
+      return 'super-admin';
     }
-    return roleId;
+    if (email === 'mrsrikart@gmail.com' || email === 'admin@taskmaster.pro') {
+        return 'admin';
+    }
+    if (email === 'lead@taskmaster.pro') {
+        return 'domain-lead';
+    }
+    return 'member';
   }
 
   const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
-    const userEmail = user.email || '';
     
     if (!userSnap.exists()) {
-      const roleId = await getRoleIdFromEmail(userEmail);
+      const role = getRoleFromEmail(user.email || '');
       await setDoc(userRef, {
         id: user.uid,
         name: name || user.displayName,
         email: user.email,
         avatarUrl: user.photoURL,
-        roleId: roleId,
+        role: role,
       });
-    } else {
-      // If user exists, still ensure their role is correctly set up
-      await getRoleIdFromEmail(userEmail);
     }
-
     toast({
       title: 'Login Successful',
       description: `Welcome back, ${name || user.displayName}!`,

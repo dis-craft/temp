@@ -1,23 +1,11 @@
-export type Permission = 
-  | 'create_task'
-  | 'edit_task'
-  | 'review_submissions'
-  | 'manage_roles';
-
-export interface Role {
-  id: string;
-  name: string;
-  permissions: Permission[];
-}
+export type UserRole = 'super-admin' | 'admin' | 'domain-lead' | 'member';
 
 export interface User {
   id: string;
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
-  roleId: string | null;
-  // For convenience, we can merge role data here
-  role?: Role;
+  role: UserRole;
 }
 
 export interface Comment {

@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import type { Task, User, Comment as CommentType, Submission, Permission } from '@/lib/types';
+import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
 import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -29,24 +29,20 @@ interface TaskDetailsModalProps {
   onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
 }
 
-const hasPermission = (user: User, permission: Permission) => {
-    return user.role?.permissions?.includes(permission) ?? false;
-}
-
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
   const [isUploading, setIsUploading] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
-  
-  const canEditTask = hasPermission(currentUser, 'edit_task');
-  const canReviewSubmissions = hasPermission(currentUser, 'review_submissions');
-  const isMember = !canEditTask && !canReviewSubmissions;
 
   if (!task) return null;
 
   const assignees = task.assignees || [];
   const userSubmissions = task.submissions.filter(s => s.author.id === currentUser.id);
+
+  const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canReviewSubmissions = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const isMember = !canEditTask && !canReviewSubmissions;
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;

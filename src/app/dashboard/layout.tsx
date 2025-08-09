@@ -24,12 +24,9 @@ import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth
 import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import type { User, Role, Permission } from '@/lib/types';
+import type { User, UserRole } from '@/lib/types';
 import { doc, onSnapshot } from 'firebase/firestore';
 
-const hasPermission = (user: User, permission: Permission) => {
-    return user.role?.permissions?.includes(permission) ?? false;
-}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
@@ -39,42 +36,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   React.useEffect(() => {
     const auth = getAuth(app);
-    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        
-        const userUnsubscribe = onSnapshot(userRef, (userDoc) => {
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
-            
-            if (userData.roleId) {
-              const roleRef = doc(db, 'roles', userData.roleId);
-              const roleUnsubscribe = onSnapshot(roleRef, (roleDoc) => {
-                if (roleDoc.exists()) {
-                  userData.role = roleDoc.data() as Role;
-                }
-                setUser(userData);
-                setLoading(false);
-              });
-              return () => roleUnsubscribe();
-            } else {
-              setUser(userData);
-              setLoading(false);
-            }
-          } else {
-             setLoading(false);
+        const unsub = onSnapshot(userRef, (doc) => {
+          if (doc.exists()) {
+            setUser({ id: doc.id, ...doc.data() } as User);
           }
+          setLoading(false);
         });
-
-        return () => userUnsubscribe();
-
+        return () => unsub();
       } else {
         router.push('/login');
         setLoading(false);
       }
     });
 
-    return () => authUnsubscribe();
+    return () => unsubscribe();
   }, [router]);
   
   if (loading) {
@@ -117,16 +95,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </SidebarMenuButton>
                  </Link>
               </SidebarMenuItem>
-              {hasPermission(user, 'manage_roles') && (
-                  <SidebarMenuItem>
-                    <Link href="/dashboard/roles" className='w-full'>
-                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
-                        <ShieldCheck />
-                        <span>Manage Roles</span>
-                        </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
