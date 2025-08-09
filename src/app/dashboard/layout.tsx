@@ -70,6 +70,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
     );
   }
+  
+  const hasPermission = (permission: string) => {
+    if(!user || !user.role || !Array.isArray(user.role.permissions)) return false;
+    return user.role.permissions.includes(permission);
+  }
+  
+  const isSuperAdmin = user.role.name === 'super-admin';
 
   return (
     <SidebarProvider>
@@ -95,6 +102,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </SidebarMenuButton>
                  </Link>
               </SidebarMenuItem>
+              {isSuperAdmin && (
+                 <SidebarMenuItem>
+                    <Link href="/dashboard/roles" className='w-full'>
+                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
+                          <ShieldCheck />
+                          <span>Manage Roles</span>
+                        </SidebarMenuButton>
+                    </Link>
+                 </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>

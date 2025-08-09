@@ -93,17 +93,18 @@ export default function Dashboard() {
       });
     }
   };
-
+  
+  const hasPermission = (permission: string) => {
+    if(!currentUser || !currentUser.role || !Array.isArray(currentUser.role.permissions)) return false;
+    return currentUser.role.permissions.includes(permission);
+  }
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead') {
+    if (hasPermission('view_all_tasks')) {
         return tasks;
     }
-    if (currentUser.role === 'member') {
-      return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
-    }
-    return [];
+    return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
   }, [currentUser, tasks]);
   
   if (loadingUser) {
@@ -122,7 +123,7 @@ export default function Dashboard() {
     );
   }
   
-  const canCreateTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
+  const canCreateTask = hasPermission('create_task');
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -143,7 +144,7 @@ export default function Dashboard() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{currentUser.role || 'No Role'}</DropdownMenuLabel>
+              <DropdownMenuLabel>{currentUser.role?.name || 'No Role'}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => auth.signOut()}>
                   Sign Out

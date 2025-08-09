@@ -1,11 +1,20 @@
-export type UserRole = 'super-admin' | 'admin' | 'domain-lead' | 'member';
+export interface Permission {
+  id: string;
+  name: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  permissions: string[]; // Array of permission IDs
+}
 
 export interface User {
   id: string;
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
-  role: UserRole;
+  role: Role;
 }
 
 export interface Comment {

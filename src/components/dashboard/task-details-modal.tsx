@@ -52,10 +52,15 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const assignees = task.assignees || [];
   const userSubmissions = task.submissions.filter(s => s.author.id === currentUser.id);
+  
+  const hasPermission = (permission: string) => {
+    if(!currentUser || !currentUser.role || !Array.isArray(currentUser.role.permissions)) return false;
+    return currentUser.role.permissions.includes(permission);
+  }
 
-  const canEditTask = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
-  const canReviewSubmissions = currentUser.role === 'super-admin' || currentUser.role === 'admin' || currentUser.role === 'domain-lead';
-  const isMember = currentUser.role === 'member';
+  const canEditTask = hasPermission('edit_task');
+  const canReviewSubmissions = hasPermission('review_submissions');
+  const canSubmitWork = hasPermission('submit_work');
 
   const handlePostComment = async () => {
     if (!commentText.trim()) return;
@@ -297,7 +302,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                     </div>
                 )}
                 
-                {isMember && (
+                {canSubmitWork && (
                   <>
                     {userSubmissions.length > 0 && (
                       <Card>
