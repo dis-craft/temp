@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, writeBatch, addDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -15,7 +15,6 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { Role } from '@/lib/types';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -42,75 +41,20 @@ export function LoginForm() {
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '' },
   });
-  
-  const createInitialPermissions = async (batch: any) => {
-    const permissions = [
-      { id: 'manage_roles', name: 'Manage Roles' },
-      { id: 'create_task', name: 'Create Task' },
-      { id: 'edit_task', name: 'Edit Task' },
-      { id: 'review_submissions', name: 'Review Submissions' },
-      { id: 'view_all_tasks', name: 'View All Tasks' },
-      { id: 'submit_work', name: 'Submit Work' },
-    ];
-    const permissionsRef = collection(db, 'permissions');
-    const existingPermsSnap = await getDocs(permissionsRef);
-    const existingPerms = existingPermsSnap.docs.map(d => d.id);
-    
-    permissions.forEach(p => {
-        if (!existingPerms.includes(p.id)) {
-            batch.set(doc(db, 'permissions', p.id), { name: p.name });
-        }
-    });
+
+  const getRoleForEmail = (email: string): 'super-admin' | 'admin' | 'domain-lead' | 'member' => {
+    if (email === 'super-admin@taskmaster.pro') return 'super-admin';
+    if (email === 'admin@taskmaster.pro' || email === 'mrsrikart@gmail.com') return 'admin';
+    if (email === 'lead@taskmaster.pro') return 'domain-lead';
+    return 'member';
   };
-
-  const getOrCreateRole = async (email: string): Promise<Role> => {
-    const batch = writeBatch(db);
-    await createInitialPermissions(batch);
-    
-    let roleName = 'member';
-    let rolePermissions = ['submit_work'];
-
-    if (email === 'super-admin@taskmaster.pro') {
-      roleName = 'super-admin';
-      rolePermissions = ['manage_roles', 'create_task', 'edit_task', 'review_submissions', 'view_all_tasks', 'submit_work'];
-    } else if (email === 'admin@taskmaster.pro' || email === 'mrsrikart@gmail.com') {
-      roleName = 'admin';
-      rolePermissions = ['create_task', 'edit_task', 'review_submissions', 'view_all_tasks', 'submit_work'];
-    } else if (email === 'lead@taskmaster.pro') {
-      roleName = 'domain-lead';
-      rolePermissions = ['create_task', 'edit_task', 'review_submissions'];
-    }
-
-    const rolesRef = collection(db, 'roles');
-    const q = query(rolesRef, where('name', '==', roleName));
-    const roleSnap = await getDocs(q);
-
-    let roleData: Role;
-
-    if (roleSnap.empty) {
-      const newRoleRef = doc(collection(db, 'roles'));
-      roleData = { id: newRoleRef.id, name: roleName, permissions: rolePermissions };
-      batch.set(newRoleRef, { name: roleName, permissions: rolePermissions });
-    } else {
-      const existingRole = roleSnap.docs[0];
-      roleData = { ...existingRole.data(), id: existingRole.id } as Role;
-      // Ensure super-admin always has manage_roles
-      if (roleName === 'super-admin' && !roleData.permissions.includes('manage_roles')) {
-          roleData.permissions.push('manage_roles');
-          batch.update(existingRole.ref, { permissions: arrayUnion('manage_roles') });
-      }
-    }
-    
-    await batch.commit();
-    return roleData;
-  }
 
   const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
     
     if (!userSnap.exists()) {
-      const role = await getOrCreateRole(user.email || '');
+      const role = getRoleForEmail(user.email || '');
       await setDoc(userRef, {
         id: user.uid,
         name: name || user.displayName,

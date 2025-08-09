@@ -24,7 +24,7 @@ import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth
 import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import type { User, UserRole } from '@/lib/types';
+import type { User } from '@/lib/types';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 
@@ -71,12 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
   
-  const hasPermission = (permission: string) => {
-    if(!user || !user.role || !Array.isArray(user.role.permissions)) return false;
-    return user.role.permissions.includes(permission);
-  }
-  
-  const isSuperAdmin = user.role.name === 'super-admin';
+  const isSuperAdmin = user.role === 'super-admin';
 
   return (
     <SidebarProvider>
@@ -102,16 +97,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </SidebarMenuButton>
                  </Link>
               </SidebarMenuItem>
-              {isSuperAdmin && (
-                 <SidebarMenuItem>
-                    <Link href="/dashboard/roles" className='w-full'>
-                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
-                          <ShieldCheck />
-                          <span>Manage Roles</span>
-                        </SidebarMenuButton>
-                    </Link>
-                 </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>

@@ -53,9 +53,19 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const assignees = task.assignees || [];
   const userSubmissions = task.submissions.filter(s => s.author.id === currentUser.id);
   
-  const hasPermission = (permission: string) => {
-    if(!currentUser || !currentUser.role || !Array.isArray(currentUser.role.permissions)) return false;
-    return currentUser.role.permissions.includes(permission);
+  const hasPermission = (permission: 'edit_task' | 'review_submissions' | 'submit_work') => {
+    if (!currentUser) return false;
+    const userRole = currentUser.role;
+    switch (permission) {
+        case 'edit_task':
+            return userRole === 'super-admin' || userRole === 'admin' || userRole === 'domain-lead';
+        case 'review_submissions':
+            return userRole === 'super-admin' || userRole === 'admin' || userRole === 'domain-lead';
+        case 'submit_work':
+            return userRole === 'super-admin' || userRole === 'admin' || userRole === 'member';
+        default:
+            return false;
+    }
   }
 
   const canEditTask = hasPermission('edit_task');
@@ -321,27 +331,29 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                     <Download className="mr-2 h-4 w-4"/>
                                     Download
                                   </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="destructive" size="icon_sm">
-                                        <Trash2 className="h-4 w-4"/>
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          This action cannot be undone. This will permanently delete your submission.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteSubmission(submission)}>
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
+                                  {submission.author.id === currentUser.id && (
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="destructive" size="icon_sm">
+                                          <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete your submission.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction onClick={() => handleDeleteSubmission(submission)}>
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  )}
                                </div>
                             </div>
                           ))}

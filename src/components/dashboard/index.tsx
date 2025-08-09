@@ -94,14 +94,19 @@ export default function Dashboard() {
     }
   };
   
-  const hasPermission = (permission: string) => {
-    if(!currentUser || !currentUser.role || !Array.isArray(currentUser.role.permissions)) return false;
-    return currentUser.role.permissions.includes(permission);
+  const hasPermission = (permissions: Array<'create_task' | 'view_all_tasks'>) => {
+    if (!currentUser) return false;
+    const userRole = currentUser.role;
+    if (userRole === 'super-admin' || userRole === 'admin') return true;
+    if (userRole === 'domain-lead') {
+        return permissions.includes('create_task');
+    }
+    return false;
   }
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
-    if (hasPermission('view_all_tasks')) {
+    if (hasPermission(['view_all_tasks'])) {
         return tasks;
     }
     return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
@@ -123,7 +128,7 @@ export default function Dashboard() {
     );
   }
   
-  const canCreateTask = hasPermission('create_task');
+  const canCreateTask = hasPermission(['create_task']);
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -144,7 +149,7 @@ export default function Dashboard() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{currentUser.role?.name || 'No Role'}</DropdownMenuLabel>
+              <DropdownMenuLabel>{currentUser.role}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => auth.signOut()}>
                   Sign Out
