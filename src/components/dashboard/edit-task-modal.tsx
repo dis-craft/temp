@@ -36,9 +36,10 @@ interface EditTaskModalProps {
   onUpdateTask: (taskId: string, updatedTask: Partial<Omit<Task, 'id'>>) => void;
   allUsers: User[];
   task: Task;
+  currentUser: User | null;
 }
 
-export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task }: EditTaskModalProps) {
+export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task, currentUser }: EditTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
@@ -68,6 +69,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task 
 
 
   const descriptionValue = form.watch('description');
+  const titleValue = form.watch('title');
 
   const handleSuggestion = async () => {
     if (!descriptionValue) {
@@ -111,6 +113,10 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task 
       
       const response = await fetch('/api/upload', {
           method: 'POST',
+          headers: {
+            'X-User-Name': currentUser?.name || 'unknown-user',
+            'X-Task-Title': titleValue || 'untitled-task',
+          },
           body: formData,
       });
 

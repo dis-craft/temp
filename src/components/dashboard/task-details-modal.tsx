@@ -73,6 +73,10 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
       
       const response = await fetch('/api/upload', {
           method: 'POST',
+           headers: {
+            'X-User-Name': currentUser?.name || 'unknown-user',
+            'X-Task-Title': task.title || 'untitled-task',
+          },
           body: formData,
       });
 
@@ -112,7 +116,17 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = (fileKey?: string) => {
     if (!fileKey) return;
-    const downloadUrl = `${process.env.NEXT_PUBLIC_R2_WORKER_URL}/${fileKey}`;
+    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
+    if (!workerUrl) {
+      console.error('NEXT_PUBLIC_R2_WORKER_URL is not set.');
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'The file server URL is not configured. Please contact an administrator.',
+      });
+      return;
+    }
+    const downloadUrl = `${workerUrl}/${fileKey}`;
     window.open(downloadUrl, '_blank');
   };
 
@@ -311,6 +325,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         onUpdateTask={onUpdateTask}
         allUsers={allUsers}
         task={task}
+        currentUser={currentUser}
     />
     </>
   );

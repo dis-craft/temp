@@ -46,7 +46,7 @@ export default function Dashboard() {
         if (user) {
            const userDoc = await getDoc(doc(db, 'users', user.uid));
            if(userDoc.exists()) {
-              setCurrentUser(userDoc.data() as UserType);
+              setCurrentUser({ id: user.uid, ...userDoc.data() } as UserType);
            }
         } else {
             setCurrentUser(null);
@@ -177,6 +177,7 @@ export default function Dashboard() {
         setIsOpen={setCreateModalOpen}
         onCreateTask={addTask}
         allUsers={allUsers}
+        currentUser={currentUser}
       />
     </div>
   );

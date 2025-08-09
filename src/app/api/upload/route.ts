@@ -8,14 +8,23 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
+    const userName = req.headers.get('X-User-Name') || 'user';
+    const taskTitle = req.headers.get('X-Task-Title') || 'task';
 
     if (!file) {
       return NextResponse.json({error: 'No file provided.'}, {status: 400});
     }
+    
+    // Sanitize inputs for filename
+    const safeUserName = userName.replace(/\s+/g, '_');
+    const safeTaskTitle = taskTitle.replace(/\s+/g, '_');
+    const safeOriginalName = file.name.replace(/\s+/g, '_');
 
+    const newFilename = `${safeUserName}_${safeTaskTitle}_${safeOriginalName}`;
+    
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     // Encode the filename to handle special characters safely
-    const key = `${uuidv4()}-${encodeURIComponent(file.name)}`;
+    const key = `${uuidv4()}-${encodeURIComponent(newFilename)}`;
     const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
 
     if (!workerUrl) {

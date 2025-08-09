@@ -19,6 +19,9 @@ import { suggestAssignees } from '@/ai/flows/suggest-assignees';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -36,9 +39,10 @@ interface CreateTaskModalProps {
   setIsOpen: (isOpen: boolean) => void;
   onCreateTask: (newTask: Omit<Task, 'id'>) => void;
   allUsers: User[];
+  currentUser: User | null;
 }
 
-export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: CreateTaskModalProps) {
+export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, currentUser }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
@@ -54,6 +58,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
   });
 
   const descriptionValue = form.watch('description');
+  const titleValue = form.watch('title');
 
   const handleSuggestion = async () => {
     if (!descriptionValue) {
@@ -98,6 +103,10 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers }: C
       
       const response = await fetch('/api/upload', {
           method: 'POST',
+          headers: {
+            'X-User-Name': currentUser?.name || 'unknown-user',
+            'X-Task-Title': titleValue || 'untitled-task',
+          },
           body: formData,
       });
 
