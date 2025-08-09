@@ -5,7 +5,7 @@ import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import type { Task, User as UserType, Role } from '@/lib/types';
+import type { Task, User as UserType, Role, Permission } from '@/lib/types';
 import TaskCard from './task-card';
 import { CreateTaskModal } from './create-task-modal';
 import {
@@ -21,8 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
-const hasPermission = (user: UserType, permission: 'create_task') => {
-  return user.role?.permissions.includes(permission) ?? false;
+const hasPermission = (user: UserType, permission: Permission) => {
+  return user.role?.permissions?.includes(permission) ?? false;
 }
 
 export default function Dashboard() {
@@ -69,17 +69,29 @@ export default function Dashboard() {
     });
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
-        if (!user) {
+        if (user && !currentUser) {
+           const userDoc = await getDoc(doc(db, 'users', user.uid));
+           if (userDoc.exists()) {
+              const userData = userDoc.data() as UserType;
+              if (userData.roleId) {
+                const roleDoc = await getDoc(doc(db, 'roles', userData.roleId));
+                if (roleDoc.exists()) {
+                    userData.role = roleDoc.data() as Role;
+                }
+              }
+              setCurrentUser(userData);
+           }
+        } else if (!user) {
             setCurrentUser(null);
-            setLoadingUser(false);
         }
+        setLoadingUser(false);
     });
 
     return () => {
       unsubscribeTasks();
       unsubscribeAuth();
     }
-  }, []);
+  }, [currentUser]);
   
   const addTask = async (newTask: Omit<Task, 'id'>) => {
     try {
@@ -117,11 +129,13 @@ export default function Dashboard() {
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
-    // Admins and leads see all tasks, members only see their own.
+    if (currentUser.role?.name === 'super-admin' || currentUser.role?.name === 'admin' || currentUser.role?.name === 'domain-lead') {
+        return tasks;
+    }
     if (currentUser.role?.name === 'member') {
       return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
     }
-    return tasks;
+    return [];
   }, [currentUser, tasks]);
   
   if (loadingUser) {
