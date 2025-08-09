@@ -14,11 +14,23 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { EditTaskModal } from './edit-task-modal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 
 interface TaskDetailsModalProps {
   task: Task;
@@ -34,6 +46,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const [commentText, setCommentText] = React.useState('');
   const [isUploading, setIsUploading] = React.useState(false);
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
+  const [fileToUpload, setFileToUpload] = React.useState<File | null>(null);
 
   if (!task) return null;
 
@@ -62,14 +75,13 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
     toast({ title: "Comment posted!" });
   };
   
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleFileUpload = async () => {
+    if (!fileToUpload) return;
 
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileToUpload);
       
       const response = await fetch('/api/upload', {
           method: 'POST',
@@ -101,7 +113,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         submissions: arrayUnion(newSubmission)
       });
 
-      toast({ title: "File submitted!" });
+      toast({ title: "File submitted successfully!" });
     } catch (error) {
        console.error('Upload error:', error);
        toast({
@@ -111,8 +123,30 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
        });
     } finally {
         setIsUploading(false);
+        setFileToUpload(null);
     }
   }
+
+  const handleDeleteSubmission = async (submission: Submission) => {
+    try {
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        submissions: arrayRemove(submission)
+      });
+      toast({
+        title: 'Submission Deleted',
+        description: 'Your submission has been successfully removed.',
+      });
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Delete Failed',
+        description: 'Could not delete the submission. Please try again.',
+      });
+    }
+  };
+
 
   const handleDownload = (fileKey?: string) => {
     if (!fileKey) return;
@@ -132,7 +166,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) setFileToUpload(null); setIsOpen(open); }}>
       <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex justify-between items-start">
@@ -237,6 +271,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
             <TabsContent value="submissions" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-6">
                 {canReviewSubmissions && (
                      <div className="space-y-4">
+                        {task.submissions.length === 0 && <p className="text-muted-foreground text-center">No submissions yet.</p>}
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>
                             <CardContent className="p-4 flex items-center justify-between">
@@ -275,10 +310,33 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                 <FileText className="h-6 w-6 text-muted-foreground" />
                                 <span className="text-sm font-medium">{submission.file}</span>
                                </div>
-                               <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>
-                                  <Download className="mr-2 h-4 w-4"/>
-                                  Download
-                               </Button>
+                               <div className="flex items-center gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>
+                                    <Download className="mr-2 h-4 w-4"/>
+                                    Download
+                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="destructive" size="icon_sm">
+                                        <Trash2 className="h-4 w-4"/>
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          This action cannot be undone. This will permanently delete your submission.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteSubmission(submission)}>
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                               </div>
                             </div>
                           ))}
                         </CardContent>
@@ -290,6 +348,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                             <CardTitle className="text-lg font-headline">Submit Your Work</CardTitle>
                         </CardHeader>
                         <CardContent>
+                          <AlertDialog>
                             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg">
                                 {isUploading ? (
                                     <>
@@ -303,13 +362,36 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                             <p className="font-semibold">Drag & drop your PDF here</p>
                                             <p className="text-sm text-muted-foreground">or click to browse</p>
                                         </Label>
-                                        <Input id="submission-file" type="file" accept=".pdf" className="hidden" onChange={handleFileUpload} />
-                                        <Button asChild className="mt-4 cursor-pointer">
-                                            <label htmlFor="submission-file">Upload PDF</label>
-                                        </Button>
+                                        <Input 
+                                          id="submission-file" 
+                                          type="file" 
+                                          accept=".pdf" 
+                                          className="hidden" 
+                                          onChange={(e) => setFileToUpload(e.target.files?.[0] || null)} 
+                                        />
+                                        <AlertDialogTrigger asChild>
+                                          <Button className="mt-4" disabled={!fileToUpload}>
+                                            Upload PDF
+                                          </Button>
+                                        </AlertDialogTrigger>
                                     </>
                                 )}
                             </div>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to submit the file: <span className="font-semibold">{fileToUpload?.name}</span>?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setFileToUpload(null)}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleFileUpload}>
+                                  Confirm & Submit
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </CardContent>
                     </Card>
                   </>
