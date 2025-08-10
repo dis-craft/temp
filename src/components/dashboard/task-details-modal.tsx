@@ -39,9 +39,10 @@ interface TaskDetailsModalProps {
   setIsOpen: (isOpen: boolean) => void;
   allUsers: User[];
   onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
-export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask }: TaskDetailsModalProps) {
+export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask, onDeleteTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
   const [isUploading, setIsUploading] = React.useState(false);
@@ -473,6 +474,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         isOpen={isEditModalOpen} 
         setIsOpen={setEditModalOpen}
         onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
         allUsers={allUsers}
         task={task}
         currentUser={currentUser}

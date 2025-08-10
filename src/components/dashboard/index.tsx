@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, query, orderBy, doc, updateDoc, getDoc, where, deleteDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { Task, User as UserType } from '@/lib/types';
 import TaskCard from './task-card';
@@ -128,6 +128,23 @@ export default function Dashboard() {
     }
   };
   
+  const deleteTask = async (taskId: string) => {
+    try {
+      const taskRef = doc(db, 'tasks', taskId);
+      await deleteDoc(taskRef);
+      toast({
+        title: 'Task Deleted!',
+        description: 'The task has been successfully deleted.',
+      });
+    } catch (e) {
+      toast({
+        title: 'Error deleting task',
+        description: (e as Error).message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const hasPermission = (permissions: Array<'create_task' | 'view_all_tasks'>) => {
     if (!currentUser) return false;
     const userRole = currentUser.role;
@@ -199,7 +216,7 @@ export default function Dashboard() {
       <div className="flex-1 overflow-y-auto pt-6 pr-2 -mr-2">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleTasks.map((task) => (
-            <TaskCard key={task.id} task={task} currentUser={currentUser} allUsers={allUsers} onUpdateTask={updateTask} />
+            <TaskCard key={task.id} task={task} currentUser={currentUser} allUsers={allUsers} onUpdateTask={updateTask} onDeleteTask={deleteTask} />
           ))}
           {visibleTasks.length === 0 && (
             <div className="col-span-full text-center text-muted-foreground py-10">
