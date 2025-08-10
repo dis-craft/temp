@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
-        <SidebarInset className="bg-background flex-1">
+        <SidebarInset className="bg-background flex-1 md:pl-[--sidebar-width-icon]">
           <header className="flex items-center justify-between p-4 border-b md:p-6 lg:p-8">
             <div className='flex items-center gap-2'>
                 <SidebarTrigger className='md:hidden'/>
