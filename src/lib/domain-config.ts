@@ -13,7 +13,8 @@ export const domainConfig: Record<User['domain'] & string, { lead: string, membe
         members: [
             '5245929.class9.srikar@gmail.com',
             'shashanknm9535@gmail.com',
-            'cadpwdis12345678atcad@gmail.com'
+            'cadpwdis12345678atcad@gmail.com',
+            'mem2mechdomain@gmail.com'
             // Add member emails for Mechanical domain here
             // e.g., 'member1@example.com',
         ]
