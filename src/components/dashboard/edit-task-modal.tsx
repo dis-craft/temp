@@ -4,7 +4,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { CalendarIcon, Loader2, Sparkles } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -19,6 +19,17 @@ import { suggestAssignees } from '@/ai/flows/suggest-assignees';
 import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
@@ -34,12 +45,13 @@ interface EditTaskModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   onUpdateTask: (taskId: string, updatedTask: Partial<Omit<Task, 'id'>>) => void;
+  onDeleteTask: (taskId: string) => void;
   allUsers: User[];
   task: Task;
   currentUser: User | null;
 }
 
-export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task, currentUser }: EditTaskModalProps) {
+export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, allUsers, task, currentUser }: EditTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
@@ -175,6 +187,11 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
     
     onUpdateTask(task.id, updatedTask);
     form.reset();
+    setIsOpen(false);
+  };
+  
+  const handleDelete = () => {
+    onDeleteTask(task.id);
     setIsOpen(false);
   };
 
@@ -326,12 +343,36 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, allUsers, task,
               </div>
             </ScrollArea>
             
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isUploading}>
-                {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Update Task
-              </Button>
+            <DialogFooter className="justify-between">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="destructive">
+                    <Trash2 className="mr-2" /> Delete Task
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the task
+                      and all associated data.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className={cn("bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
+                      Delete Task
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={isUploading}>
+                  {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Update Task
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>

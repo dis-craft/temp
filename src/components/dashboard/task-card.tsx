@@ -16,9 +16,10 @@ interface TaskCardProps {
   currentUser: User;
   allUsers: User[];
   onUpdateTask: (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
-export default function TaskCard({ task, currentUser, allUsers, onUpdateTask }: TaskCardProps) {
+export default function TaskCard({ task, currentUser, allUsers, onUpdateTask, onDeleteTask }: TaskCardProps) {
   const [isDetailsModalOpen, setDetailsModalOpen] = React.useState(false);
   const dueDate = new Date(task.dueDate);
   const isOverdue = isPast(dueDate) && task.status !== 'Completed';
@@ -108,6 +109,7 @@ export default function TaskCard({ task, currentUser, allUsers, onUpdateTask }: 
         setIsOpen={setDetailsModalOpen}
         allUsers={allUsers}
         onUpdateTask={onUpdateTask}
+        onDeleteTask={onDeleteTask}
       />
     </>
   );
