@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: 'A professional task management application.',
 };
 
+
+
 export default function RootLayout({
   children,
 }: Readonly<{
