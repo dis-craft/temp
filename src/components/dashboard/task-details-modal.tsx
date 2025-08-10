@@ -10,11 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2, BellRing } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2, BellRing, Star } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { cn } from '@/lib/utils';
 
 
 interface TaskDetailsModalProps {
@@ -42,6 +42,43 @@ interface TaskDetailsModalProps {
   onDeleteTask: (taskId: string) => void;
 }
 
+const StarRating = ({ rating, onRate, readOnly = false }: { rating: number; onRate?: (rating: number) => void, readOnly?: boolean }) => {
+  const [hoverRating, setHoverRating] = React.useState(0);
+
+  const getRatingFeedback = (r: number) => {
+    if (r >= 4) return { text: "Good", className: "text-green-500" };
+    if (r === 3) return { text: "Needs Improvement", className: "text-yellow-500" };
+    if (r > 0 && r <= 2) return { text: "Redo", className: "text-red-500" };
+    return { text: "Not Rated", className: "text-muted-foreground" };
+  };
+
+  const feedback = getRatingFeedback(rating);
+
+  return (
+    <div className='flex items-center gap-4'>
+        <div className="flex items-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+            key={star}
+            className={cn(
+                "h-5 w-5 cursor-pointer",
+                (hoverRating || rating) >= star ? "text-yellow-400 fill-yellow-400" : "text-gray-300",
+                readOnly && "cursor-default"
+            )}
+            onClick={() => !readOnly && onRate?.(star)}
+            onMouseEnter={() => !readOnly && setHoverRating(star)}
+            onMouseLeave={() => !readOnly && setHoverRating(0)}
+            />
+        ))}
+        </div>
+        <Badge variant="outline" className={cn("w-32 justify-center", feedback.className)}>
+            {feedback.text}
+        </Badge>
+    </div>
+  );
+};
+
+
 export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUsers, onUpdateTask, onDeleteTask }: TaskDetailsModalProps) {
   const { toast } = useToast();
   const [commentText, setCommentText] = React.useState('');
@@ -53,7 +90,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   if (!task) return null;
 
   const assignees = task.assignees || [];
-  const userSubmissions = task.submissions.filter(s => s.author.id === currentUser.id);
+  const userSubmission = task.submissions.find(s => s.author.id === currentUser.id);
   
   const hasPermission = (permission: 'edit_task' | 'review_submissions' | 'submit_work' | 'send_reminders') => {
     if (!currentUser) return false;
@@ -64,7 +101,8 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         case 'send_reminders':
             return userRole === 'super-admin' || userRole === 'admin' || userRole === 'domain-lead';
         case 'submit_work':
-            return userRole === 'super-admin' || userRole === 'admin' || userRole === 'member';
+            // An assignee can submit work
+            return assignees.some(a => a.id === currentUser.id);
         default:
             return false;
     }
@@ -202,6 +240,24 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         title: 'Delete Failed',
         description: 'Could not delete the submission. Please try again.',
       });
+    }
+  };
+
+  const handleRateSubmission = async (submissionId: string, rating: number) => {
+    const taskRef = doc(db, 'tasks', task.id);
+    const updatedSubmissions = task.submissions.map(sub => 
+        sub.id === submissionId ? { ...sub, qualityScore: rating } : sub
+    );
+    try {
+        await updateDoc(taskRef, { submissions: updatedSubmissions });
+        toast({ title: 'Rating Saved', description: `You've rated this submission ${rating} out of 5 stars.` });
+    } catch (error) {
+        console.error('Error saving rating:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Rating Failed',
+            description: 'Could not save the rating. Please try again.',
+        });
     }
   };
 
@@ -349,9 +405,8 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                 <p className="text-sm text-muted-foreground">{submission.file}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 w-1/3">
-                                <Slider defaultValue={[submission.qualityScore || 0]} max={100} step={1} />
-                                <Badge variant="secondary" className="w-16 justify-center">{submission.qualityScore || 0}%</Badge>
+                            <div className="flex items-center gap-4">
+                               <StarRating rating={submission.qualityScore || 0} onRate={(rating) => handleRateSubmission(submission.id, rating)} />
                                 <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>Review</Button>
                             </div>
                             </CardContent>
@@ -360,55 +415,59 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                     </div>
                 )}
                 
-                {canSubmitWork && (
+                {canSubmitWork && !canReviewSubmissions && (
                   <>
-                    {userSubmissions.length > 0 && (
+                    {userSubmission ? (
                       <Card>
                         <CardHeader>
-                          <CardTitle className="text-lg font-headline">Your Submissions</CardTitle>
+                          <CardTitle className="text-lg font-headline">Your Submission</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                          {userSubmissions.map(submission => (
-                            <div key={submission.id} className="flex items-center justify-between p-2 border rounded-md">
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between p-3 border rounded-md">
                                <div className="flex items-center gap-3">
                                 <FileText className="h-6 w-6 text-muted-foreground" />
-                                <span className="text-sm font-medium">{submission.file}</span>
+                                <div>
+                                    <span className="text-sm font-medium">{userSubmission.file}</span>
+                                    <p className='text-xs text-muted-foreground'>Submitted {formatDistanceToNow(new Date(userSubmission.timestamp), { addSuffix: true })}</p>
+                                </div>
                                </div>
                                <div className="flex items-center gap-2">
-                                  <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>
+                                  <Button variant="outline" size="sm" onClick={() => handleDownload(userSubmission.file)}>
                                     <Download className="mr-2 h-4 w-4"/>
-                                    Download
+                                    View
                                   </Button>
-                                  {submission.author.id === currentUser.id && (
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="icon_sm">
-                                          <Trash2 className="h-4 w-4"/>
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete your submission.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction onClick={() => handleDeleteSubmission(submission)}>
-                                            Delete
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  )}
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="icon_sm">
+                                        <Trash2 className="h-4 w-4"/>
+                                    </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete your submission.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteSubmission(userSubmission)}>
+                                        Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                </div>
                             </div>
-                          ))}
+                            <div>
+                                <Label>Feedback & Rating</Label>
+                                <div className="p-3 border rounded-md mt-2">
+                                    <StarRating rating={userSubmission.qualityScore || 0} readOnly={true} />
+                                </div>
+                            </div>
                         </CardContent>
                       </Card>
-                    )}
-
+                    ) : (
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg font-headline">Submit Your Work</CardTitle>
@@ -463,6 +522,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                             </div>
                         </CardContent>
                     </Card>
+                    )}
                   </>
                 )}
             </TabsContent>
