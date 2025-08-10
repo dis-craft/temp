@@ -208,7 +208,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = async (fileKey?: string) => {
     if (!fileKey) return;
-    const workerUrl = process.env.NEXT_PUBLIC_R2_DOWNLOAD_URL;
+    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
     if (workerUrl) {
       window.open(`${workerUrl}/${fileKey}`, '_blank');
     } else {
