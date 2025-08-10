@@ -20,6 +20,7 @@ export interface Submission {
   file: string;
   timestamp: string;
   qualityScore?: number;
+  remarks?: string;
 }
 
 export type TaskStatus = 'Pending' | 'In Progress' | 'Completed';

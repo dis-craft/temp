@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task, User, Comment as CommentType, Submission } from '@/lib/types';
-import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2, BellRing, Star } from 'lucide-react';
+import { FileText, MessageCircle, Upload, Calendar, Users, Paperclip, Loader2, Pencil, Download, Trash2, BellRing, Star, Send } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -46,7 +46,8 @@ const StarRating = ({ rating, onRate, readOnly = false }: { rating: number; onRa
   const [hoverRating, setHoverRating] = React.useState(0);
 
   const getRatingFeedback = (r: number) => {
-    if (r >= 4) return { text: "Good", className: "text-green-500" };
+    if (r === 5) return { text: "Great", className: "text-green-600" };
+    if (r === 4) return { text: "Good", className: "text-green-500" };
     if (r === 3) return { text: "Needs Improvement", className: "text-yellow-500" };
     if (r > 0 && r <= 2) return { text: "Redo", className: "text-red-500" };
     return { text: "Not Rated", className: "text-muted-foreground" };
@@ -55,7 +56,7 @@ const StarRating = ({ rating, onRate, readOnly = false }: { rating: number; onRa
   const feedback = getRatingFeedback(rating);
 
   return (
-    <div className='flex items-center gap-4'>
+    <div className='flex flex-col sm:flex-row items-center gap-2 sm:gap-4'>
         <div className="flex items-center">
         {[1, 2, 3, 4, 5].map((star) => (
             <Star
@@ -86,6 +87,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
   const [isEditModalOpen, setEditModalOpen] = React.useState(false);
   const [fileToUpload, setFileToUpload] = React.useState<File | null>(null);
   const [isSendingReminder, setIsSendingReminder] = React.useState(false);
+  const [remarks, setRemarks] = React.useState<Record<string, string>>({});
 
   if (!task) return null;
 
@@ -101,7 +103,6 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         case 'send_reminders':
             return userRole === 'super-admin' || userRole === 'admin' || userRole === 'domain-lead';
         case 'submit_work':
-            // An assignee can submit work
             return assignees.some(a => a.id === currentUser.id);
         default:
             return false;
@@ -243,20 +244,33 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
     }
   };
 
-  const handleRateSubmission = async (submissionId: string, rating: number) => {
+  const handleRatingAndRemarks = async (submissionId: string, rating?: number, remark?: string) => {
     const taskRef = doc(db, 'tasks', task.id);
-    const updatedSubmissions = task.submissions.map(sub => 
-        sub.id === submissionId ? { ...sub, qualityScore: rating } : sub
-    );
+    const updatedSubmissions = task.submissions.map(sub => {
+        if (sub.id === submissionId) {
+            return {
+                ...sub,
+                qualityScore: rating !== undefined ? rating : sub.qualityScore,
+                remarks: remark !== undefined ? remark : sub.remarks,
+            };
+        }
+        return sub;
+    });
+
     try {
         await updateDoc(taskRef, { submissions: updatedSubmissions });
-        toast({ title: 'Rating Saved', description: `You've rated this submission ${rating} out of 5 stars.` });
+        if (rating !== undefined) {
+             toast({ title: 'Rating Saved', description: `You've rated this submission ${rating} out of 5 stars.` });
+        }
+        if (remark !== undefined) {
+             toast({ title: 'Remarks Saved', description: 'Your feedback has been saved.' });
+        }
     } catch (error) {
-        console.error('Error saving rating:', error);
+        console.error('Error saving feedback:', error);
         toast({
             variant: 'destructive',
-            title: 'Rating Failed',
-            description: 'Could not save the rating. Please try again.',
+            title: 'Feedback Failed',
+            description: 'Could not save the feedback. Please try again.',
         });
     }
   };
@@ -281,13 +295,13 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) setFileToUpload(null); setIsOpen(open); }}>
       <DialogContent className="sm:max-w-3xl h-[90vh] flex flex-col">
         <DialogHeader>
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start flex-wrap gap-2">
             <DialogTitle className="font-headline text-2xl pr-12">{task.title}</DialogTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {canSendReminders && (
                 <Button variant="outline" size="sm" onClick={handleSendReminder} disabled={isSendingReminder}>
                   {isSendingReminder ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellRing className="mr-2 h-4 w-4" />}
-                  Remind Unsubmitted
+                  Remind
                 </Button>
               )}
               {canEditTask && (
@@ -298,7 +312,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-4 text-sm text-muted-foreground pt-1">
+          <div className="flex flex-wrap items-center space-x-4 text-sm text-muted-foreground pt-1">
             <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 <span>Due on {format(new Date(task.dueDate), 'PPP')}</span>
@@ -310,7 +324,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
             {task.attachment && (
                 <div className="flex items-center gap-2">
                     <Paperclip className="h-4 w-4" />
-                    <span>Attachment Included</span>
+                    <span>Attachment</span>
                 </div>
             )}
           </div>
@@ -318,7 +332,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         
         <div className="flex-grow overflow-hidden">
           <Tabs defaultValue="details" className="h-full flex flex-col">
-            <TabsList className="shrink-0">
+            <TabsList className="shrink-0 w-full justify-start overflow-x-auto -mx-1 px-1">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="comments">Comments</TabsTrigger>
               <TabsTrigger value="submissions">Submissions</TabsTrigger>
@@ -338,7 +352,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                         <div className="flex items-center p-4 border rounded-md">
                             <FileText className="h-10 w-10 mr-4 text-primary" />
                             <div className="flex-grow">
-                                <p className="font-medium">{task.attachment}</p>
+                                <p className="font-medium break-all">{task.attachment}</p>
                                 <p className="text-sm text-muted-foreground">PDF Document</p>
                             </div>
                             <Button variant="outline" onClick={() => handleDownload(task.attachment)}>
@@ -394,21 +408,41 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                         {task.submissions.length === 0 && <p className="text-muted-foreground text-center">No submissions yet.</p>}
                         {task.submissions.map(submission => (
                         <Card key={submission.id}>
-                            <CardContent className="p-4 flex items-center justify-between">
-                            <div className="flex items-center">
-                                <Avatar className="h-10 w-10 mr-4">
-                                <AvatarImage src={submission.author.avatarUrl || undefined} />
-                                <AvatarFallback>{submission.author.name?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                <p className="font-semibold">{submission.author.name}</p>
-                                <p className="text-sm text-muted-foreground">{submission.file}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                               <StarRating rating={submission.qualityScore || 0} onRate={(rating) => handleRateSubmission(submission.id, rating)} />
-                                <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>Review</Button>
-                            </div>
+                            <CardContent className="p-4">
+                               <div className='flex flex-col sm:flex-row items-center justify-between gap-4'>
+                                    <div className="flex items-center">
+                                        <Avatar className="h-10 w-10 mr-4">
+                                        <AvatarImage src={submission.author.avatarUrl || undefined} />
+                                        <AvatarFallback>{submission.author.name?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                        <p className="font-semibold">{submission.author.name}</p>
+                                        <p className="text-sm text-muted-foreground break-all">{submission.file}</p>
+                                        </div>
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => handleDownload(submission.file)}>
+                                      <Download className="mr-2 h-4 w-4"/>
+                                      View Submission
+                                    </Button>
+                               </div>
+                               <Separator className="my-4" />
+                               <div className="space-y-4">
+                                  <Label>Rate Submission</Label>
+                                  <StarRating rating={submission.qualityScore || 0} onRate={(rating) => handleRatingAndRemarks(submission.id, rating)} />
+
+                                  <Label htmlFor={`remarks-${submission.id}`}>Write Remarks</Label>
+                                  <div className="flex gap-2">
+                                     <Textarea
+                                      id={`remarks-${submission.id}`}
+                                      placeholder="Provide detailed feedback..."
+                                      defaultValue={submission.remarks || ''}
+                                      onChange={(e) => setRemarks(prev => ({ ...prev, [submission.id]: e.target.value }))}
+                                    />
+                                    <Button size="icon" onClick={() => handleRatingAndRemarks(submission.id, undefined, remarks[submission.id])} aria-label="Submit Remarks">
+                                        <Send/>
+                                    </Button>
+                                  </div>
+                               </div>
                             </CardContent>
                         </Card>
                         ))}
@@ -423,15 +457,15 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                           <CardTitle className="text-lg font-headline">Your Submission</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between p-3 border rounded-md">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-md">
                                <div className="flex items-center gap-3">
                                 <FileText className="h-6 w-6 text-muted-foreground" />
                                 <div>
-                                    <span className="text-sm font-medium">{userSubmission.file}</span>
+                                    <span className="text-sm font-medium break-all">{userSubmission.file}</span>
                                     <p className='text-xs text-muted-foreground'>Submitted {formatDistanceToNow(new Date(userSubmission.timestamp), { addSuffix: true })}</p>
                                 </div>
                                </div>
-                               <div className="flex items-center gap-2">
+                               <div className="flex items-center gap-2 shrink-0">
                                   <Button variant="outline" size="sm" onClick={() => handleDownload(userSubmission.file)}>
                                     <Download className="mr-2 h-4 w-4"/>
                                     View
@@ -461,8 +495,17 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                             </div>
                             <div>
                                 <Label>Feedback & Rating</Label>
-                                <div className="p-3 border rounded-md mt-2">
+                                <div className="p-3 border rounded-md mt-2 space-y-2">
                                     <StarRating rating={userSubmission.qualityScore || 0} readOnly={true} />
+                                    {userSubmission.remarks && (
+                                        <>
+                                            <Separator/>
+                                            <div className="space-y-1">
+                                                <p className='text-sm font-medium'>Remarks from Lead:</p>
+                                                <p className="text-sm text-muted-foreground p-2 bg-secondary rounded-md">{userSubmission.remarks}</p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -495,7 +538,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                         />
                                         {fileToUpload && (
                                             <div className="mt-4 text-center">
-                                                <p className="text-sm font-medium">Selected: {fileToUpload.name}</p>
+                                                <p className="text-sm font-medium break-all">Selected: {fileToUpload.name}</p>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button className="mt-2">Upload PDF</Button>
@@ -504,7 +547,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                                         <AlertDialogHeader>
                                                         <AlertDialogTitle>Confirm Submission</AlertDialogTitle>
                                                         <AlertDialogDescription>
-                                                            Are you sure you want to submit the file: <span className="font-semibold">{fileToUpload?.name}</span>?
+                                                            Are you sure you want to submit the file: <span className="font-semibold break-all">{fileToUpload?.name}</span>?
                                                         </AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
