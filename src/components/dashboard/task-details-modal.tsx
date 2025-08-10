@@ -202,6 +202,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
             file: result.filePath,
             timestamp: new Date().toISOString(),
             qualityScore: 0,
+            remarks: '',
         };
         
         const taskRef = doc(db, 'tasks', task.id);
@@ -250,8 +251,8 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         if (sub.id === submissionId) {
             return {
                 ...sub,
-                qualityScore: rating !== undefined ? rating : sub.qualityScore,
-                remarks: remark !== undefined ? remark : sub.remarks,
+                qualityScore: rating !== undefined ? rating : (sub.qualityScore || 0),
+                remarks: remark !== undefined ? remark : (sub.remarks || ''),
             };
         }
         return sub;
