@@ -12,7 +12,7 @@
         command = [
           "npm"
           "run"
-          "dev2"
+          "dev"
           "--"
           "--port"
           "$PORT"
