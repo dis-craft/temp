@@ -86,7 +86,7 @@ export default function Dashboard() {
   
   const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
     try {
-      const taskWithDomain = { ...newTask, domain: currentUser?.domain };
+      const taskWithDomain = { ...newTask, domain: currentUser?.role === 'domain-lead' ? currentUser.domain : domainFilter };
       const docRef = await addDoc(collection(db, 'tasks'), taskWithDomain);
       
       toast({
@@ -182,12 +182,15 @@ export default function Dashboard() {
         // Domain leads can only assign to members of their domain
         return allUsers.filter(u => u.role === 'member' && u.domain === currentUser.domain);
     }
-    // Admins and super-admins can assign to any member
     if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
-        return allUsers.filter(u => u.role === 'member');
+        const members = allUsers.filter(u => u.role === 'member');
+        if (domainFilter) {
+            return members.filter(u => u.domain === domainFilter);
+        }
+        return members;
     }
     return [];
-  }, [currentUser, allUsers]);
+  }, [currentUser, allUsers, domainFilter]);
 
   if (loadingUser) {
     return (
@@ -205,7 +208,7 @@ export default function Dashboard() {
     );
   }
   
-  const canCreateTask = hasPermission(['create_task']);
+  const canCreateTask = hasPermission(['create_task']) && (currentUser.role !== 'super-admin' || domainFilter);
   const pageTitle = domainFilter ? `${domainFilter} Domain Tasks` : "Tasks Overview";
   const pageDescription = domainFilter ? `Viewing tasks for the ${domainFilter} domain.` : "Manage and track all your team's tasks.";
 
