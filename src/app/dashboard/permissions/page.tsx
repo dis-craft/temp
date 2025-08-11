@@ -32,6 +32,7 @@ export default function ManagePermissionsPage() {
   const [addingMember, setAddingMember] = React.useState<string | null>(null);
   const [newMemberEmail, setNewMemberEmail] = React.useState<Record<string, string>>({});
   
+  const [isAddingSpecialRole, setIsAddingSpecialRole] = React.useState(false);
   const [newSpecialRoleEmail, setNewSpecialRoleEmail] = React.useState('');
   const [newSpecialRole, setNewSpecialRole] = React.useState<'super-admin' | 'admin'>('admin');
 
@@ -70,6 +71,7 @@ export default function ManagePermissionsPage() {
       setIsSubmitting(prev => ({ ...prev, [id]: false }));
       setAddingLead(null);
       setAddingMember(null);
+      setIsAddingSpecialRole(false);
     }
   };
 
@@ -125,7 +127,12 @@ export default function ManagePermissionsPage() {
       
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Shield className="text-primary"/> Special Roles</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Shield className="text-primary"/> Special Roles</CardTitle>
+            <Button variant="ghost" size="icon" onClick={() => setIsAddingSpecialRole(true)}>
+                <PlusCircle className="h-4 w-4"/>
+            </Button>
+          </div>
           <CardDescription>These users have elevated privileges across all domains.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -156,6 +163,7 @@ export default function ManagePermissionsPage() {
                             </AlertDialog>
                         </Badge>
                     ))}
+                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').length === 0 && <p className="text-xs text-muted-foreground">No super admins assigned.</p>}
                 </div>
             </div>
             <Separator />
@@ -186,32 +194,42 @@ export default function ManagePermissionsPage() {
                             </AlertDialog>
                         </Badge>
                     ))}
+                    {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').length === 0 && <p className="text-xs text-muted-foreground">No admins assigned.</p>}
                 </div>
             </div>
+             {isAddingSpecialRole && (
+              <>
+                <Separator/>
+                <div className="pt-2">
+                    <h4 className="font-semibold text-sm mb-2">Add New Special Role</h4>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Input
+                        placeholder="new.admin@example.com"
+                        value={newSpecialRoleEmail}
+                        onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
+                        disabled={isSubmitting['special-roles']}
+                        />
+                        <Select value={newSpecialRole} onValueChange={(value) => setNewSpecialRole(value as 'super-admin' | 'admin')}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="super-admin">Super Admin</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div className="flex gap-2">
+                            <Button onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']} className="w-full sm:w-auto flex-grow">
+                                {isSubmitting['special-roles'] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Save Role
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => setIsAddingSpecialRole(false)}><X/></Button>
+                        </div>
+                    </div>
+                </div>
+              </>
+            )}
         </CardContent>
-         <CardFooter>
-              <div className="w-full flex flex-col sm:flex-row gap-2">
-                <Input
-                  placeholder="new.admin@example.com"
-                  value={newSpecialRoleEmail}
-                  onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
-                  disabled={isSubmitting['special-roles']}
-                />
-                <Select value={newSpecialRole} onValueChange={(value) => setNewSpecialRole(value as 'super-admin' | 'admin')}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="super-admin">Super Admin</SelectItem>
-                    </SelectContent>
-                </Select>
-                <Button onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']} className="w-full sm:w-auto">
-                  {isSubmitting['special-roles'] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2" />}
-                  Add Special Role
-                </Button>
-              </div>
-            </CardFooter>
       </Card>
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
