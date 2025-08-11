@@ -27,9 +27,10 @@ import { useRouter } from 'next/navigation';
 
 export default function ManagePermissionsPage() {
   const [isSubmitting, setIsSubmitting] = React.useState<Record<string, boolean>>({});
-  const [newMemberEmail, setNewMemberEmail] = React.useState<Record<string, string>>({});
   const [addingLead, setAddingLead] = React.useState<string | null>(null);
   const [newLeadEmail, setNewLeadEmail] = React.useState<Record<string, string>>({});
+  const [addingMember, setAddingMember] = React.useState<string | null>(null);
+  const [newMemberEmail, setNewMemberEmail] = React.useState<Record<string, string>>({});
   
   const [newSpecialRoleEmail, setNewSpecialRoleEmail] = React.useState('');
   const [newSpecialRole, setNewSpecialRole] = React.useState<'super-admin' | 'admin'>('admin');
@@ -68,6 +69,7 @@ export default function ManagePermissionsPage() {
     } finally {
       setIsSubmitting(prev => ({ ...prev, [id]: false }));
       setAddingLead(null);
+      setAddingMember(null);
     }
   };
 
@@ -270,7 +272,7 @@ export default function ManagePermissionsPage() {
                             disabled={isSubmitting[domainName]}
                         />
                         <Button size="icon" onClick={() => handleAddLead(domainName)} disabled={isSubmitting[domainName]}>
-                            <Save/>
+                            {isSubmitting[domainName] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => setAddingLead(null)}><X/></Button>
                     </div>
@@ -278,7 +280,12 @@ export default function ManagePermissionsPage() {
               </div>
               <Separator/>
               <div>
-                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><Users className="text-primary"/> Members ({config.members.length})</h4>
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-sm flex items-center gap-2"><Users className="text-primary"/> Members ({config.members.length})</h4>
+                     <Button variant="ghost" size="icon" onClick={() => setAddingMember(domainName)}>
+                        <PlusCircle className="h-4 w-4"/>
+                    </Button>
+                </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                   {config.members.length > 0 ? (
                     config.members.map((member) => (
@@ -309,22 +316,22 @@ export default function ManagePermissionsPage() {
                     <p className="text-sm text-muted-foreground">No members in this domain yet.</p>
                   )}
                 </div>
+                 {addingMember === domainName && (
+                    <div className="flex gap-2 mt-2">
+                        <Input 
+                            value={newMemberEmail[domainName] || ''}
+                            placeholder="member.email@example.com"
+                            onChange={(e) => setNewMemberEmail(prev => ({...prev, [domainName]: e.target.value}))}
+                            disabled={isSubmitting[domainName]}
+                        />
+                        <Button size="icon" onClick={() => handleAddMember(domainName)} disabled={isSubmitting[domainName]}>
+                             {isSubmitting[domainName] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setAddingMember(null)}><X/></Button>
+                    </div>
+                )}
               </div>
             </CardContent>
-            <CardFooter>
-              <div className="w-full flex flex-col sm:flex-row gap-2">
-                <Input
-                  placeholder="new.member@example.com"
-                  value={newMemberEmail[domainName] || ''}
-                  onChange={(e) => setNewMemberEmail(prev => ({ ...prev, [domainName]: e.target.value }))}
-                  disabled={isSubmitting[domainName]}
-                />
-                <Button onClick={() => handleAddMember(domainName)} disabled={isSubmitting[domainName]} className="w-full sm:w-auto">
-                  {isSubmitting[domainName] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2" />}
-                  Add Member
-                </Button>
-              </div>
-            </CardFooter>
           </Card>
         ))}
       </div>
