@@ -7,10 +7,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, Edit, X, Eye } from 'lucide-react';
+import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, X, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,9 +31,8 @@ export default function ManagePermissionsPage() {
   const [addingMember, setAddingMember] = React.useState<string | null>(null);
   const [newMemberEmail, setNewMemberEmail] = React.useState<Record<string, string>>({});
   
-  const [isAddingSpecialRole, setIsAddingSpecialRole] = React.useState(false);
+  const [addingRole, setAddingRole] = React.useState<'super-admin' | 'admin' | null>(null);
   const [newSpecialRoleEmail, setNewSpecialRoleEmail] = React.useState('');
-  const [newSpecialRole, setNewSpecialRole] = React.useState<'super-admin' | 'admin'>('admin');
 
   const { toast } = useToast();
   const router = useRouter();
@@ -71,7 +69,8 @@ export default function ManagePermissionsPage() {
       setIsSubmitting(prev => ({ ...prev, [id]: false }));
       setAddingLead(null);
       setAddingMember(null);
-      setIsAddingSpecialRole(false);
+      setAddingRole(null);
+      setNewSpecialRoleEmail('');
     }
   };
 
@@ -104,12 +103,11 @@ export default function ManagePermissionsPage() {
   };
 
   const handleAddSpecialRole = () => {
-    if (!newSpecialRoleEmail || !newSpecialRoleEmail.trim()) {
+    if (!newSpecialRoleEmail || !newSpecialRoleEmail.trim() || !addingRole) {
         toast({ variant: 'destructive', title: 'Error', description: 'Email cannot be empty.' });
         return;
     }
-    handleApiCall({ action: 'add-special-role', email: newSpecialRoleEmail, role: newSpecialRole }, 'special-roles');
-    setNewSpecialRoleEmail('');
+    handleApiCall({ action: 'add-special-role', email: newSpecialRoleEmail, role: addingRole }, 'special-roles');
   }
 
   const handleRemoveSpecialRole = (email: string) => {
@@ -127,17 +125,17 @@ export default function ManagePermissionsPage() {
       
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><Shield className="text-primary"/> Special Roles</CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setIsAddingSpecialRole(true)}>
-                <PlusCircle className="h-4 w-4"/>
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2"><Shield className="text-primary"/> Special Roles</CardTitle>
           <CardDescription>These users have elevated privileges across all domains.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
             <div>
-                <h4 className="font-semibold text-sm mb-2">Super Admins</h4>
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-sm">Super Admins</h4>
+                    <Button variant="ghost" size="icon" onClick={() => { setAddingRole('super-admin'); setNewSpecialRoleEmail('')}}>
+                        <PlusCircle className="h-4 w-4"/>
+                    </Button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').map(([email]) => (
                         <Badge key={email} variant="destructive" className="flex items-center gap-2">
@@ -165,10 +163,29 @@ export default function ManagePermissionsPage() {
                     ))}
                      {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').length === 0 && <p className="text-xs text-muted-foreground">No super admins assigned.</p>}
                 </div>
+                 {addingRole === 'super-admin' && (
+                    <div className="flex gap-2 mt-2">
+                        <Input 
+                            value={newSpecialRoleEmail}
+                            placeholder="super.admin@example.com"
+                            onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
+                            disabled={isSubmitting['special-roles']}
+                        />
+                        <Button size="icon" onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']}>
+                            {isSubmitting['special-roles'] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setAddingRole(null)}><X/></Button>
+                    </div>
+                )}
             </div>
             <Separator />
              <div>
-                <h4 className="font-semibold text-sm mb-2">Admins</h4>
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-sm">Admins</h4>
+                     <Button variant="ghost" size="icon" onClick={() => { setAddingRole('admin'); setNewSpecialRoleEmail('')}}>
+                        <PlusCircle className="h-4 w-4"/>
+                    </Button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').map(([email]) => (
                         <Badge key={email} variant="secondary" className="flex items-center gap-2">
@@ -196,39 +213,21 @@ export default function ManagePermissionsPage() {
                     ))}
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').length === 0 && <p className="text-xs text-muted-foreground">No admins assigned.</p>}
                 </div>
-            </div>
-             {isAddingSpecialRole && (
-              <>
-                <Separator/>
-                <div className="pt-2">
-                    <h4 className="font-semibold text-sm mb-2">Add New Special Role</h4>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <Input
-                        placeholder="new.admin@example.com"
-                        value={newSpecialRoleEmail}
-                        onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
-                        disabled={isSubmitting['special-roles']}
+                 {addingRole === 'admin' && (
+                    <div className="flex gap-2 mt-2">
+                        <Input 
+                            value={newSpecialRoleEmail}
+                            placeholder="admin@example.com"
+                            onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
+                            disabled={isSubmitting['special-roles']}
                         />
-                        <Select value={newSpecialRole} onValueChange={(value) => setNewSpecialRole(value as 'super-admin' | 'admin')}>
-                            <SelectTrigger className="w-full sm:w-[180px]">
-                                <SelectValue placeholder="Select a role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="super-admin">Super Admin</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <div className="flex gap-2">
-                            <Button onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']} className="w-full sm:w-auto flex-grow">
-                                {isSubmitting['special-roles'] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                Save Role
-                            </Button>
-                            <Button size="icon" variant="ghost" onClick={() => setIsAddingSpecialRole(false)}><X/></Button>
-                        </div>
+                        <Button size="icon" onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']}>
+                            {isSubmitting['special-roles'] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={() => setAddingRole(null)}><X/></Button>
                     </div>
-                </div>
-              </>
-            )}
+                )}
+            </div>
         </CardContent>
       </Card>
 
