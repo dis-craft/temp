@@ -10,6 +10,19 @@ import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, Edit, X } from 
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { cn } from '@/lib/utils';
+
 
 export default function ManagePermissionsPage() {
   const [isSubmitting, setIsSubmitting] = React.useState<Record<string, boolean>>({});
@@ -114,9 +127,25 @@ export default function ManagePermissionsPage() {
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').map(([email]) => (
                         <Badge key={email} variant="destructive" className="flex items-center gap-2">
                             {email}
-                            <button onClick={() => handleRemoveSpecialRole(email)} disabled={isSubmitting['special-roles']}>
-                                <Trash2 className="h-3 w-3 hover:text-white/80" />
-                            </button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <button disabled={isSubmitting['special-roles']}>
+                                        <Trash2 className="h-3 w-3 hover:text-white/80" />
+                                    </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will remove <span className='font-bold'>{email}</span> from the Super Admin role. They will lose all super admin privileges.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleRemoveSpecialRole(email)}>Confirm</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </Badge>
                     ))}
                 </div>
@@ -128,9 +157,25 @@ export default function ManagePermissionsPage() {
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').map(([email]) => (
                         <Badge key={email} variant="secondary" className="flex items-center gap-2">
                             {email}
-                             <button onClick={() => handleRemoveSpecialRole(email)} disabled={isSubmitting['special-roles']}>
-                                <Trash2 className="h-3 w-3 hover:text-black/80" />
-                            </button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <button disabled={isSubmitting['special-roles']}>
+                                        <Trash2 className="h-3 w-3 hover:text-black/80" />
+                                    </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will remove <span className='font-bold'>{email}</span> from the Admin role. They will lose all admin privileges.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleRemoveSpecialRole(email)}>Confirm</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </Badge>
                     ))}
                 </div>
@@ -200,9 +245,25 @@ export default function ManagePermissionsPage() {
                     config.members.map((member) => (
                       <div key={member} className="flex items-center justify-between bg-secondary/50 p-2 rounded-md">
                         <span className="text-sm">{member}</span>
-                         <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(domainName, member)} disabled={isSubmitting[domainName]}>
-                            <Trash2 className="text-destructive h-4 w-4"/>
-                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" disabled={isSubmitting[domainName]}>
+                                    <Trash2 className="text-destructive h-4 w-4"/>
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will remove <span className='font-bold'>{member}</span> from the {domainName} domain.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleRemoveMember(domainName, member)}>Confirm</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     ))
                   ) : (
@@ -230,4 +291,3 @@ export default function ManagePermissionsPage() {
       </div>
     </div>
   );
-}
