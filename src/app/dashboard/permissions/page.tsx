@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -106,6 +107,10 @@ export default function ManagePermissionsPage() {
      handleApiCall({ action: 'remove-special-role', email }, 'special-roles');
   }
 
+  const startEditingLead = (domainName: string, currentLead: string) => {
+    setEditingLead(domainName);
+    setNewLeadEmail(prev => ({...prev, [domainName]: currentLead}));
+  };
 
   return (
     <div className="w-full h-full flex flex-col space-y-6">
@@ -226,7 +231,8 @@ export default function ManagePermissionsPage() {
                 {editingLead === domainName ? (
                     <div className="flex gap-2">
                         <Input 
-                            defaultValue={config.lead}
+                            value={newLeadEmail[domainName] || ''}
+                            placeholder="lead.email@example.com"
                             onChange={(e) => setNewLeadEmail(prev => ({...prev, [domainName]: e.target.value}))}
                             disabled={isSubmitting[domainName]}
                         />
@@ -236,12 +242,22 @@ export default function ManagePermissionsPage() {
                         <Button size="icon" variant="ghost" onClick={() => setEditingLead(null)}><X/></Button>
                     </div>
                 ) : (
-                    <div className="flex items-center justify-between">
-                        <Badge variant="outline">{config.lead}</Badge>
-                        <Button variant="ghost" size="icon" onClick={() => { setEditingLead(domainName); setNewLeadEmail(prev => ({...prev, [domainName]: config.lead}))}}>
-                            <Edit className="h-4 w-4"/>
-                        </Button>
-                    </div>
+                    config.lead ? (
+                        <div className="flex items-center justify-between">
+                            <Badge variant="outline">{config.lead}</Badge>
+                            <Button variant="ghost" size="icon" onClick={() => startEditingLead(domainName, config.lead)}>
+                                <Edit className="h-4 w-4"/>
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className='flex items-center justify-between'>
+                            <p className="text-sm text-muted-foreground">No lead assigned.</p>
+                            <Button variant="outline" size="sm" onClick={() => startEditingLead(domainName, '')}>
+                                <PlusCircle className="mr-2 h-4 w-4"/>
+                                Assign Lead
+                            </Button>
+                        </div>
+                    )
                 )}
               </div>
               <Separator/>
