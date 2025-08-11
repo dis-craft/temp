@@ -245,9 +245,14 @@ export default function ManagePermissionsPage() {
                     config.lead ? (
                         <div className="flex items-center justify-between">
                             <Badge variant="outline">{config.lead}</Badge>
-                            <Button variant="ghost" size="icon" onClick={() => startEditingLead(domainName, config.lead)}>
-                                <Edit className="h-4 w-4"/>
-                            </Button>
+                            <div className='flex items-center'>
+                                <Button variant="ghost" size="icon" onClick={() => startEditingLead(domainName, '')}>
+                                    <PlusCircle className="h-4 w-4"/>
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => startEditingLead(domainName, config.lead)}>
+                                    <Edit className="h-4 w-4"/>
+                                </Button>
+                            </div>
                         </div>
                     ) : (
                         <div className='flex items-center justify-between'>
@@ -315,5 +320,3 @@ export default function ManagePermissionsPage() {
     </div>
   );
 }
-
-    
