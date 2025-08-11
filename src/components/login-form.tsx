@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, query } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -16,7 +16,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { User } from '@/lib/types';
-import { domainConfig, specialRolesConfig } from '@/lib/domain-config';
 import { formatUserName } from '@/lib/utils';
 
 const signUpSchema = z.object({
@@ -45,26 +44,35 @@ export function LoginForm() {
     defaultValues: { email: '', password: '' },
   });
 
-  const getRoleForEmail = (email: string): { role: User['role']; domain?: User['domain'] } => {
-    // Check for special roles first (super-admin, admin)
-    if (specialRolesConfig[email]) {
-      return { role: specialRolesConfig[email] };
-    }
-
-    // Check domain leads and members
-    for (const domainName in domainConfig) {
-        const domain = domainConfig[domainName as keyof typeof domainConfig];
-        if (domain.leads.includes(email)) {
-            return { role: 'domain-lead', domain: domainName as User['domain'] };
-        }
-        if (domain.members.includes(email)) {
-            return { role: 'member', domain: domainName as User['domain'] };
+  const getRoleForEmail = async (email: string): Promise<{ role: User['role']; domain?: User['domain'] }> => {
+    // Check special roles first
+    const specialRolesRef = doc(db, 'config', 'specialRoles');
+    const specialRolesSnap = await getDoc(specialRolesRef);
+    if (specialRolesSnap.exists()) {
+        const specialRolesData = specialRolesSnap.data();
+        if (specialRolesData[email]) {
+            return { role: specialRolesData[email] };
         }
     }
     
+    // Check domain leads and members
+    const domainsQuery = query(collection(db, 'domains'));
+    const domainsSnapshot = await getDocs(domainsQuery);
+    for (const domainDoc of domainsSnapshot.docs) {
+        const domainData = domainDoc.data();
+        const domainName = domainDoc.id as User['domain'];
+        if ((domainData.leads || []).includes(email)) {
+            return { role: 'domain-lead', domain: domainName };
+        }
+        if ((domainData.members || []).includes(email)) {
+            return { role: 'member', domain: domainName };
+        }
+    }
+
     // Default to member with no domain if not found anywhere
     return { role: 'member', domain: undefined };
   };
+
 
   const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
     const userRef = doc(db, 'users', user.uid);
@@ -73,7 +81,7 @@ export function LoginForm() {
     let userData: User;
 
     if (!userSnap.exists()) {
-      const { role, domain } = getRoleForEmail(user.email || '');
+      const { role, domain } = await getRoleForEmail(user.email || '');
       const newUser: User = {
         id: user.uid,
         name: name || user.displayName,

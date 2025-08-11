@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { domainConfig, specialRolesConfig } from '@/lib/domain-config';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,9 +21,25 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useRouter } from 'next/navigation';
+import { collection, onSnapshot, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { User as UserType } from '@/lib/types';
+
+
+interface DomainConfig {
+    id: string;
+    leads: string[];
+    members: string[];
+}
+
+type SpecialRolesConfig = Record<string, 'super-admin' | 'admin'>;
 
 
 export default function ManagePermissionsPage() {
+  const [domainConfig, setDomainConfig] = React.useState<DomainConfig[]>([]);
+  const [specialRolesConfig, setSpecialRolesConfig] = React.useState<SpecialRolesConfig>({});
+  const [isLoading, setIsLoading] = React.useState(true);
+
   const [isSubmitting, setIsSubmitting] = React.useState<Record<string, boolean>>({});
   const [addingLead, setAddingLead] = React.useState<string | null>(null);
   const [newLeadEmail, setNewLeadEmail] = React.useState<Record<string, string>>({});
@@ -36,6 +51,26 @@ export default function ManagePermissionsPage() {
 
   const { toast } = useToast();
   const router = useRouter();
+
+  React.useEffect(() => {
+    const unsubDomains = onSnapshot(collection(db, 'domains'), (snapshot) => {
+      const domainsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as DomainConfig));
+      setDomainConfig(domainsData);
+      setIsLoading(false);
+    });
+
+    const unsubSpecialRoles = onSnapshot(doc(db, 'config', 'specialRoles'), (doc) => {
+        if(doc.exists()) {
+            setSpecialRolesConfig(doc.data() as SpecialRolesConfig);
+        }
+        setIsLoading(false);
+    });
+
+    return () => {
+      unsubDomains();
+      unsubSpecialRoles();
+    };
+  }, []);
 
   const handleApiCall = async (body: any, id: string = 'global') => {
     setIsSubmitting(prev => ({ ...prev, [id]: true }));
@@ -56,8 +91,6 @@ export default function ManagePermissionsPage() {
         title: 'Success!',
         description: result.message,
       });
-
-      setTimeout(() => window.location.reload(), 1500);
 
     } catch (error) {
       toast({
@@ -112,6 +145,14 @@ export default function ManagePermissionsPage() {
 
   const handleRemoveSpecialRole = (email: string) => {
      handleApiCall({ action: 'remove-special-role', email }, 'special-roles');
+  }
+  
+  if (isLoading) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
   }
 
   return (
@@ -232,23 +273,23 @@ export default function ManagePermissionsPage() {
       </Card>
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
-        {Object.entries(domainConfig).map(([domainName, config]) => (
-          <Card key={domainName} className="flex flex-col">
+        {domainConfig.map((config) => (
+          <Card key={config.id} className="flex flex-col">
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2 font-headline">{domainName}</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard?domain=${domainName}`)}>
+                <CardTitle className="flex items-center gap-2 font-headline">{config.id}</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard?domain=${config.id}`)}>
                     <Eye className="mr-2 h-4 w-4"/>
                     View Tasks
                 </Button>
               </div>
-              <CardDescription>Manage the members and leads of the {domainName} domain.</CardDescription>
+              <CardDescription>Manage the members and leads of the {config.id} domain.</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-sm flex items-center gap-2"><User className="text-primary"/> Domain Leads ({config.leads.length})</h4>
-                    <Button variant="ghost" size="icon" onClick={() => setAddingLead(domainName)}>
+                    <Button variant="ghost" size="icon" onClick={() => setAddingLead(config.id)}>
                         <PlusCircle className="h-4 w-4"/>
                     </Button>
                 </div>
@@ -258,7 +299,7 @@ export default function ManagePermissionsPage() {
                             <span className="text-sm">{lead}</span>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" disabled={isSubmitting[domainName]}>
+                                    <Button variant="ghost" size="icon" disabled={isSubmitting[config.id]}>
                                         <Trash2 className="text-destructive h-4 w-4"/>
                                     </Button>
                                 </AlertDialogTrigger>
@@ -266,12 +307,12 @@ export default function ManagePermissionsPage() {
                                     <AlertDialogHeader>
                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        This will remove <span className='font-bold'>{lead}</span> as a lead from the {domainName} domain.
+                                        This will remove <span className='font-bold'>{lead}</span> as a lead from the {config.id} domain.
                                     </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleRemoveLead(domainName, lead)}>Confirm</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleRemoveLead(config.id, lead)}>Confirm</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -280,16 +321,16 @@ export default function ManagePermissionsPage() {
                     {config.leads.length === 0 && <p className="text-sm text-muted-foreground">No leads assigned.</p>}
                 </div>
 
-                {addingLead === domainName && (
+                {addingLead === config.id && (
                     <div className="flex gap-2 mt-2">
                         <Input 
-                            value={newLeadEmail[domainName] || ''}
+                            value={newLeadEmail[config.id] || ''}
                             placeholder="lead.email@example.com"
-                            onChange={(e) => setNewLeadEmail(prev => ({...prev, [domainName]: e.target.value}))}
-                            disabled={isSubmitting[domainName]}
+                            onChange={(e) => setNewLeadEmail(prev => ({...prev, [config.id]: e.target.value}))}
+                            disabled={isSubmitting[config.id]}
                         />
-                        <Button size="icon" onClick={() => handleAddLead(domainName)} disabled={isSubmitting[domainName]}>
-                            {isSubmitting[domainName] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                        <Button size="icon" onClick={() => handleAddLead(config.id)} disabled={isSubmitting[config.id]}>
+                            {isSubmitting[config.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => setAddingLead(null)}><X/></Button>
                     </div>
@@ -299,7 +340,7 @@ export default function ManagePermissionsPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-sm flex items-center gap-2"><Users className="text-primary"/> Members ({config.members.length})</h4>
-                     <Button variant="ghost" size="icon" onClick={() => setAddingMember(domainName)}>
+                     <Button variant="ghost" size="icon" onClick={() => setAddingMember(config.id)}>
                         <PlusCircle className="h-4 w-4"/>
                     </Button>
                 </div>
@@ -310,7 +351,7 @@ export default function ManagePermissionsPage() {
                         <span className="text-sm">{member}</span>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" disabled={isSubmitting[domainName]}>
+                                <Button variant="ghost" size="icon" disabled={isSubmitting[config.id]}>
                                     <Trash2 className="text-destructive h-4 w-4"/>
                                 </Button>
                             </AlertDialogTrigger>
@@ -318,12 +359,12 @@ export default function ManagePermissionsPage() {
                                 <AlertDialogHeader>
                                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This action will remove <span className='font-bold'>{member}</span> from the {domainName} domain.
+                                    This action will remove <span className='font-bold'>{member}</span> from the {config.id} domain.
                                 </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRemoveMember(domainName, member)}>Confirm</AlertDialogAction>
+                                <AlertDialogAction onClick={() => handleRemoveMember(config.id, member)}>Confirm</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -333,16 +374,16 @@ export default function ManagePermissionsPage() {
                     <p className="text-sm text-muted-foreground">No members in this domain yet.</p>
                   )}
                 </div>
-                 {addingMember === domainName && (
+                 {addingMember === config.id && (
                     <div className="flex gap-2 mt-2">
                         <Input 
-                            value={newMemberEmail[domainName] || ''}
+                            value={newMemberEmail[config.id] || ''}
                             placeholder="member.email@example.com"
-                            onChange={(e) => setNewMemberEmail(prev => ({...prev, [domainName]: e.target.value}))}
-                            disabled={isSubmitting[domainName]}
+                            onChange={(e) => setNewMemberEmail(prev => ({...prev, [config.id]: e.target.value}))}
+                            disabled={isSubmitting[config.id]}
                         />
-                        <Button size="icon" onClick={() => handleAddMember(domainName)} disabled={isSubmitting[domainName]}>
-                             {isSubmitting[domainName] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                        <Button size="icon" onClick={() => handleAddMember(config.id)} disabled={isSubmitting[config.id]}>
+                             {isSubmitting[config.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
                         </Button>
                         <Button size="icon" variant="ghost" onClick={() => setAddingMember(null)}><X/></Button>
                     </div>
