@@ -108,14 +108,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                  </Link>
               </SidebarMenuItem>
               {isSuperAdmin && (
-                 <SidebarMenuItem>
-                  <Link href="/dashboard/roles" className='w-full'>
-                      <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
-                        <ShieldCheck />
-                        <span>Manage Roles</span>
-                      </SidebarMenuButton>
-                  </Link>
-                </SidebarMenuItem>
+                <>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/roles" className='w-full'>
+                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
+                          <ShieldCheck />
+                          <span>Manage Roles</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/domains" className='w-full'>
+                        <SidebarMenuButton tooltip="Manage Domains" isActive={pathname === '/dashboard/domains'}>
+                          <Users />
+                          <span>Manage Domains</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                </>
               )}
             </SidebarMenu>
           </SidebarContent>
