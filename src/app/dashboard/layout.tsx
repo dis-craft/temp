@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -6,6 +7,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Database,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -130,6 +132,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/roles" className='w-full'>
+                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
+                          <Database />
+                          <span>Manage Roles</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
                 </>
               )}
             </SidebarMenu>
@@ -170,5 +180,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </SidebarProvider>
   );
 }
+
 
 
