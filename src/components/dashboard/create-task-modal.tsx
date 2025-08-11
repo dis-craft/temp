@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
+import { cn, formatUserName } from '@/lib/utils';
 import { format } from 'date-fns';
 import { suggestAssignees } from '@/ai/flows/suggest-assignees';
 import { useToast } from '@/hooks/use-toast';
@@ -39,10 +39,11 @@ interface CreateTaskModalProps {
   setIsOpen: (isOpen: boolean) => void;
   onCreateTask: (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => void;
   allUsers: User[];
+  assignableUsers: User[];
   currentUser: User | null;
 }
 
-export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, currentUser }: CreateTaskModalProps) {
+export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, assignableUsers, currentUser }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
@@ -209,7 +210,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
                     <FormItem>
                       <FormLabel>Assignees</FormLabel>
                        <div className="grid grid-cols-2 gap-4">
-                          {allUsers.map((user) => (
+                          {assignableUsers.map((user) => (
                             <FormField
                               key={user.id}
                               control={form.control}
@@ -235,7 +236,7 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, cur
                                       />
                                     </FormControl>
                                     <FormLabel className="font-normal">
-                                      {user.name}
+                                      {formatUserName(user, allUsers)}
                                     </FormLabel>
                                   </FormItem>
                                 )

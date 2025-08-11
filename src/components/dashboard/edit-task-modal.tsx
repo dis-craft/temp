@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-import { cn } from '@/lib/utils';
+import { cn, formatUserName } from '@/lib/utils';
 import { format } from 'date-fns';
 import { suggestAssignees } from '@/ai/flows/suggest-assignees';
 import { useToast } from '@/hooks/use-toast';
@@ -276,7 +276,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                                       />
                                     </FormControl>
                                     <FormLabel className="font-normal">
-                                      {user.name}
+                                      {formatUserName(user, allUsers)}
                                     </FormLabel>
                                   </FormItem>
                                 )

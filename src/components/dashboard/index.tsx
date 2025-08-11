@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -43,12 +42,7 @@ export default function Dashboard() {
     
     const setupListeners = (user: UserType) => {
         // Users listener
-        let usersQuery;
-        if (user.role === 'domain-lead' && user.domain) {
-            usersQuery = query(collection(db, 'users'), where('domain', '==', user.domain));
-        } else {
-            usersQuery = query(collection(db, 'users'));
-        }
+        const usersQuery = query(collection(db, 'users'));
         const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
             const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType));
             setAllUsers(usersData);
@@ -245,7 +239,8 @@ export default function Dashboard() {
         isOpen={isCreateModalOpen} 
         setIsOpen={setCreateModalOpen}
         onCreateTask={addTask}
-        allUsers={assignableUsers}
+        allUsers={allUsers}
+        assignableUsers={assignableUsers}
         currentUser={currentUser}
       />
     </div>

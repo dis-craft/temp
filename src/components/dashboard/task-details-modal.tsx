@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { cn } from '@/lib/utils';
+import { cn, formatUserName } from '@/lib/utils';
 
 
 interface TaskDetailsModalProps {
@@ -376,7 +376,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                     </Avatar>
                     <div className="flex-1">
                       <div className="text-sm">
-                        <span className="font-semibold">{comment.author.name}</span>
+                        <span className="font-semibold">{formatUserName(comment.author, allUsers)}</span>
                         <span className="text-xs text-muted-foreground ml-2">{formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}</span>
                       </div>
                       <p className="text-sm text-muted-foreground bg-secondary p-2 rounded-md mt-1">{comment.text}</p>
@@ -417,7 +417,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                         <AvatarFallback>{submission.author.name?.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                        <p className="font-semibold">{submission.author.name}</p>
+                                        <p className="font-semibold">{formatUserName(submission.author, allUsers)}</p>
                                         <p className="text-sm text-muted-foreground break-all">{submission.file}</p>
                                         </div>
                                     </div>

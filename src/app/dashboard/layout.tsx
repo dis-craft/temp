@@ -25,7 +25,7 @@ import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import type { User } from '@/lib/types';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,10 +36,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { formatUserName } from '@/lib/utils';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
+  const [allUsers, setAllUsers] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -49,13 +51,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
-        const unsub = onSnapshot(userRef, (doc) => {
+        const unsubUser = onSnapshot(userRef, (doc) => {
           if (doc.exists()) {
             setUser({ id: doc.id, ...doc.data() } as User);
           }
           setLoading(false);
         });
-        return () => unsub();
+
+        const usersQuery = query(collection(db, 'users'));
+        const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
+            const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+            setAllUsers(usersData);
+        });
+
+        return () => {
+          unsubUser();
+          unsubUsers();
+        };
       } else {
         router.push('/login');
         setLoading(false);
@@ -82,6 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
   
   const isSuperAdmin = user.role === 'super-admin';
+  const formattedUserName = formatUserName(user, allUsers);
 
   return (
     <SidebarProvider>
@@ -128,7 +141,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <SidebarTrigger className='md:hidden'/>
                 <div>
                     <h1 className="text-2xl font-bold font-headline md:text-3xl">{user.domain ? `${user.domain} Domain` : 'Dashboard'}</h1>
-                    <p className="text-muted-foreground hidden md:block">Welcome back, {user.name}.</p>
+                    <p className="text-muted-foreground hidden md:block">Welcome back, {formattedUserName}.</p>
                 </div>
             </div>
             <DropdownMenu>
@@ -141,7 +154,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{user.role}</DropdownMenuLabel>
+                <DropdownMenuLabel>{formattedUserName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => getAuth(app).signOut()}>
                     Sign Out

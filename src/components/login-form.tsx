@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { User } from '@/lib/types';
 import { domainConfig, specialRolesConfig } from '@/lib/domain-config';
+import { formatUserName } from '@/lib/utils';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -67,8 +68,10 @@ export function LoginForm() {
 
   const handleAuth = async (user: import('firebase/auth').User, name?: string) => {
     const userRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userRef);
+    let userSnap = await getDoc(userRef);
     
+    let userData: User;
+
     if (!userSnap.exists()) {
       const { role, domain } = getRoleForEmail(user.email || '');
       const newUser: User = {
@@ -80,10 +83,17 @@ export function LoginForm() {
         domain: domain,
       };
       await setDoc(userRef, newUser);
+      userData = newUser;
+    } else {
+        userData = userSnap.data() as User;
     }
+
+    const allUsersSnapshot = await getDocs(collection(db, 'users'));
+    const allUsers = allUsersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+
     toast({
       title: 'Login Successful',
-      description: `Welcome back, ${name || user.displayName}!`,
+      description: `Welcome back, ${formatUserName(userData, allUsers)}!`,
     });
     router.push('/dashboard');
   };

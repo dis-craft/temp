@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Task, User } from '@/lib/types';
 import { TaskDetailsModal } from './task-details-modal';
+import { formatUserName } from '@/lib/utils';
 
 interface TaskCardProps {
   task: Task;
@@ -81,7 +82,7 @@ export default function TaskCard({ task, currentUser, allUsers, onUpdateTask, on
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{assignee.name}</p>
+                      <p>{formatUserName(assignee, allUsers)}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
