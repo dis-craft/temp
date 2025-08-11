@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, Edit, X } from 'lucide-react';
+import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, Edit, X, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 
 export default function ManagePermissionsPage() {
@@ -34,6 +34,7 @@ export default function ManagePermissionsPage() {
   const [newSpecialRole, setNewSpecialRole] = React.useState<'super-admin' | 'admin'>('admin');
 
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleApiCall = async (body: any, id: string = 'global') => {
     setIsSubmitting(prev => ({ ...prev, [id]: true }));
@@ -210,7 +211,13 @@ export default function ManagePermissionsPage() {
         {Object.entries(domainConfig).map(([domainName, config]) => (
           <Card key={domainName} className="flex flex-col">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-headline">{domainName}</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2 font-headline">{domainName}</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard?domain=${domainName}`)}>
+                    <Eye className="mr-2 h-4 w-4"/>
+                    View Tasks
+                </Button>
+              </div>
               <CardDescription>Manage the members and lead of the {domainName} domain.</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
@@ -291,3 +298,4 @@ export default function ManagePermissionsPage() {
       </div>
     </div>
   );
+}

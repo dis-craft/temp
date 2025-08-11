@@ -11,6 +11,7 @@ import { CreateTaskModal } from './create-task-modal';
 import { useToast } from '@/hooks/use-toast';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 export default function Dashboard() {
   const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
@@ -19,6 +20,8 @@ export default function Dashboard() {
   const [allUsers, setAllUsers] = React.useState<UserType[]>([]);
   const [isCreateModalOpen, setCreateModalOpen] = React.useState(false);
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const domainFilter = searchParams.get('domain');
 
   React.useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
@@ -157,15 +160,20 @@ export default function Dashboard() {
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
-      return tasks;
+
+    let filteredTasks = tasks;
+
+    // Superadmin can filter by domain via URL
+    if ((currentUser.role === 'super-admin' || currentUser.role === 'admin') && domainFilter) {
+      filteredTasks = tasks.filter(task => task.domain === domainFilter);
+    } else if (currentUser.role === 'domain-lead') {
+      filteredTasks = tasks.filter(task => task.domain === currentUser.domain);
+    } else if (currentUser.role === 'member') {
+      filteredTasks = tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
     }
-    if (currentUser.role === 'domain-lead') {
-      return tasks.filter(task => task.domain === currentUser.domain);
-    }
-    // For members, filter tasks they are assigned to
-    return tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
-  }, [currentUser, tasks]);
+
+    return filteredTasks;
+  }, [currentUser, tasks, domainFilter]);
   
   const assignableUsers = React.useMemo(() => {
     if (!currentUser) return [];
@@ -197,13 +205,16 @@ export default function Dashboard() {
   }
   
   const canCreateTask = hasPermission(['create_task']);
+  const pageTitle = domainFilter ? `${domainFilter} Domain Tasks` : "Tasks Overview";
+  const pageDescription = domainFilter ? `Viewing tasks for the ${domainFilter} domain.` : "Manage and track all your team's tasks.";
+
 
   return (
     <div className="w-full h-full flex flex-col">
       <header className="flex items-center justify-between pb-4 border-b">
         <div>
-          <h2 className="text-2xl font-semibold font-headline">Tasks Overview</h2>
-           <p className="text-muted-foreground">Manage and track all your team's tasks.</p>
+          <h2 className="text-2xl font-semibold font-headline">{pageTitle}</h2>
+           <p className="text-muted-foreground">{pageDescription}</p>
         </div>
         {canCreateTask && (
           <Button onClick={() => setCreateModalOpen(true)}>
@@ -220,7 +231,7 @@ export default function Dashboard() {
           ))}
           {visibleTasks.length === 0 && (
             <div className="col-span-full text-center text-muted-foreground py-10">
-              No tasks assigned yet.
+              {domainFilter ? `No tasks found for the ${domainFilter} domain.` : 'No tasks assigned yet.'}
             </div>
           )}
         </div>
