@@ -3,7 +3,26 @@
 
 import { db } from './firebase';
 import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
-import { domainConfig, specialRolesConfig } from './domain-config';
+
+const domainConfig = {
+  "Mechanical": {
+    "leads": ["srikanth.devarasetty.dev@gmail.com"],
+    "members": ["shashank@gmail.com"]
+  },
+  "Electrical": {
+    "leads": [],
+    "members": []
+  },
+  "Software": {
+    "leads": [],
+    "members": []
+  }
+};
+
+const specialRolesConfig = {
+    "super-admin@taskmaster.pro": "super-admin"
+};
+
 
 // This is a one-time script to seed the database with the initial domain configuration.
 // You can run this from a server-side component or an API route if needed, but ensure it only runs once.

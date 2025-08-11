@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
