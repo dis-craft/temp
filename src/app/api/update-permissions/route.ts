@@ -88,10 +88,18 @@ async function removeMember(content: string, domain: string, email: string): Pro
 }
 
 async function updateLead(content: string, domain: string, newLeadEmail: string): Promise<string> {
-    const leadRegex = new RegExp(`('${domain}':\\s*{\\s*lead:\\s*)'.*?'`, 'm');
+    // Regex to find the lead property for a specific domain.
+    // It captures the part before the email ('group 1') and the email itself ('group 2').
+    const leadRegex = new RegExp(`('${domain}':\\s*{\\s*lead:\\s*)('.*?')`, 'm');
 
-    if (!leadRegex.test(content)) throw new Error(`Domain "${domain}" not found or lead not configured.`);
+    const match = content.match(leadRegex);
 
+    if (!match) {
+        throw new Error(`Domain "${domain}" not found or lead property is missing.`);
+    }
+
+    // The part to be replaced is the full match.
+    // We construct the replacement using the captured group 1 and the new email.
     return content.replace(leadRegex, `$1'${newLeadEmail}'`);
 }
 
