@@ -53,7 +53,7 @@ export function LoginForm() {
     // Check domain leads and members
     for (const domainName in domainConfig) {
         const domain = domainConfig[domainName as keyof typeof domainConfig];
-        if (domain.lead === email) {
+        if (domain.leads.includes(email)) {
             return { role: 'domain-lead', domain: domainName as User['domain'] };
         }
         if (domain.members.includes(email)) {

@@ -28,7 +28,7 @@ import { useRouter } from 'next/navigation';
 export default function ManagePermissionsPage() {
   const [isSubmitting, setIsSubmitting] = React.useState<Record<string, boolean>>({});
   const [newMemberEmail, setNewMemberEmail] = React.useState<Record<string, string>>({});
-  const [editingLead, setEditingLead] = React.useState<string | null>(null);
+  const [addingLead, setAddingLead] = React.useState<string | null>(null);
   const [newLeadEmail, setNewLeadEmail] = React.useState<Record<string, string>>({});
   
   const [newSpecialRoleEmail, setNewSpecialRoleEmail] = React.useState('');
@@ -67,7 +67,7 @@ export default function ManagePermissionsPage() {
       });
     } finally {
       setIsSubmitting(prev => ({ ...prev, [id]: false }));
-      setEditingLead(null);
+      setAddingLead(null);
     }
   };
 
@@ -85,13 +85,18 @@ export default function ManagePermissionsPage() {
     handleApiCall({ action: 'remove-member', domain: domainName, email }, domainName);
   };
   
-  const handleUpdateLead = (domainName: string) => {
+  const handleAddLead = (domainName: string) => {
     const email = newLeadEmail[domainName];
     if (!email || !email.trim()) {
       toast({ variant: 'destructive', title: 'Error', description: 'Lead email cannot be empty.' });
       return;
     }
-    handleApiCall({ action: 'update-lead', domain: domainName, newLeadEmail: email }, domainName);
+    handleApiCall({ action: 'add-lead', domain: domainName, email: email }, domainName);
+    setNewLeadEmail(prev => ({ ...prev, [domainName]: '' }));
+  };
+
+  const handleRemoveLead = (domainName: string, email: string) => {
+    handleApiCall({ action: 'remove-lead', domain: domainName, email }, domainName);
   };
 
   const handleAddSpecialRole = () => {
@@ -106,11 +111,6 @@ export default function ManagePermissionsPage() {
   const handleRemoveSpecialRole = (email: string) => {
      handleApiCall({ action: 'remove-special-role', email }, 'special-roles');
   }
-
-  const startEditingLead = (domainName: string, currentLead: string) => {
-    setEditingLead(domainName);
-    setNewLeadEmail(prev => ({...prev, [domainName]: currentLead}));
-  };
 
   return (
     <div className="w-full h-full flex flex-col space-y-6">
@@ -223,46 +223,57 @@ export default function ManagePermissionsPage() {
                     View Tasks
                 </Button>
               </div>
-              <CardDescription>Manage the members and lead of the {domainName} domain.</CardDescription>
+              <CardDescription>Manage the members and leads of the {domainName} domain.</CardDescription>
             </CardHeader>
             <CardContent className="flex-grow space-y-4">
               <div>
-                <h4 className="font-semibold text-sm mb-2 flex items-center justify-between"><span className='flex items-center gap-2'><User className="text-primary"/> Domain Lead</span></h4>
-                {editingLead === domainName ? (
-                    <div className="flex gap-2">
+                <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-sm flex items-center gap-2"><User className="text-primary"/> Domain Leads ({config.leads.length})</h4>
+                    <Button variant="ghost" size="icon" onClick={() => setAddingLead(domainName)}>
+                        <PlusCircle className="h-4 w-4"/>
+                    </Button>
+                </div>
+                <div className="space-y-2">
+                    {config.leads.map(lead => (
+                        <div key={lead} className="flex items-center justify-between bg-secondary/50 p-2 rounded-md">
+                            <span className="text-sm">{lead}</span>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" disabled={isSubmitting[domainName]}>
+                                        <Trash2 className="text-destructive h-4 w-4"/>
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will remove <span className='font-bold'>{lead}</span> as a lead from the {domainName} domain.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleRemoveLead(domainName, lead)}>Confirm</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                    ))}
+                    {config.leads.length === 0 && <p className="text-sm text-muted-foreground">No leads assigned.</p>}
+                </div>
+
+                {addingLead === domainName && (
+                    <div className="flex gap-2 mt-2">
                         <Input 
                             value={newLeadEmail[domainName] || ''}
                             placeholder="lead.email@example.com"
                             onChange={(e) => setNewLeadEmail(prev => ({...prev, [domainName]: e.target.value}))}
                             disabled={isSubmitting[domainName]}
                         />
-                        <Button size="icon" onClick={() => handleUpdateLead(domainName)} disabled={isSubmitting[domainName]}>
+                        <Button size="icon" onClick={() => handleAddLead(domainName)} disabled={isSubmitting[domainName]}>
                             <Save/>
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setEditingLead(null)}><X/></Button>
+                        <Button size="icon" variant="ghost" onClick={() => setAddingLead(null)}><X/></Button>
                     </div>
-                ) : (
-                    config.lead ? (
-                        <div className="flex items-center justify-between">
-                            <Badge variant="outline">{config.lead}</Badge>
-                            <div className='flex items-center'>
-                                <Button variant="ghost" size="icon" onClick={() => startEditingLead(domainName, '')}>
-                                    <PlusCircle className="h-4 w-4"/>
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => startEditingLead(domainName, config.lead)}>
-                                    <Edit className="h-4 w-4"/>
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className='flex items-center justify-between'>
-                            <p className="text-sm text-muted-foreground">No lead assigned.</p>
-                            <Button variant="outline" size="sm" onClick={() => startEditingLead(domainName, '')}>
-                                <PlusCircle className="mr-2 h-4 w-4"/>
-                                Assign Lead
-                            </Button>
-                        </div>
-                    )
                 )}
               </div>
               <Separator/>
@@ -306,9 +317,9 @@ export default function ManagePermissionsPage() {
                   placeholder="new.member@example.com"
                   value={newMemberEmail[domainName] || ''}
                   onChange={(e) => setNewMemberEmail(prev => ({ ...prev, [domainName]: e.target.value }))}
-                  disabled={isSubmitting[domainName] || editingLead === domainName}
+                  disabled={isSubmitting[domainName]}
                 />
-                <Button onClick={() => handleAddMember(domainName)} disabled={isSubmitting[domainName] || editingLead === domainName} className="w-full sm:w-auto">
+                <Button onClick={() => handleAddMember(domainName)} disabled={isSubmitting[domainName]} className="w-full sm:w-auto">
                   {isSubmitting[domainName] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2" />}
                   Add Member
                 </Button>

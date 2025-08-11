@@ -21,9 +21,12 @@ export async function POST(req: NextRequest) {
         } else if (action === 'remove-member') {
             if (!email || !domain) return NextResponse.json({ error: 'Email and domain are required for removing a member.' }, { status: 400 });
             fileContent = await removeMember(fileContent, domain, email);
-        } else if (action === 'update-lead') {
-            if (!domain || !newLeadEmail) return NextResponse.json({ error: 'Domain and new lead email are required.' }, { status: 400 });
-            fileContent = await updateLead(fileContent, domain, newLeadEmail);
+        } else if (action === 'add-lead') {
+            if (!domain || !email) return NextResponse.json({ error: 'Domain and lead email are required.' }, { status: 400 });
+            fileContent = await addLead(fileContent, domain, email);
+        } else if (action === 'remove-lead') {
+            if (!domain || !email) return NextResponse.json({ error: 'Domain and lead email are required.' }, { status: 400 });
+            fileContent = await removeLead(fileContent, domain, email);
         } else if (action === 'add-special-role') {
             if (!email || !role) return NextResponse.json({ error: 'Email and role are required for adding a special role.' }, { status: 400 });
             fileContent = await addSpecialRole(fileContent, email, role);
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
 // Helper functions to manipulate the file content string
 
 async function addMember(content: string, domain: string, email: string): Promise<string> {
-    const membersRegex = new RegExp(`('${domain}':\\s*{\\s*lead:\\s*'.*?',\\s*members:\\s*\\[)([\\s\\S]*?)(\\s*\\])`, 'm');
+    const membersRegex = new RegExp(`('${domain}':\\s*{\\s*leads:\\s*\\[[\\s\\S]*?\\],\\s*members:\\s*\\[)([\\s\\S]*?)(\\s*\\])`, 'm');
     const match = content.match(membersRegex);
 
     if (!match) throw new Error(`Domain "${domain}" not found in config file.`);
@@ -71,7 +74,7 @@ async function addMember(content: string, domain: string, email: string): Promis
 }
 
 async function removeMember(content: string, domain: string, email: string): Promise<string> {
-    const membersRegex = new RegExp(`('${domain}':\\s*{\\s*lead:\\s*'.*?',\\s*members:\\s*\\[)([\\s\\S]*?)(\\s*\\])`, 'm');
+    const membersRegex = new RegExp(`('${domain}':\\s*{\\s*leads:\\s*\\[[\\s\\S]*?\\],\\s*members:\\s*\\[)([\\s\\S]*?)(\\s*\\])`, 'm');
     const match = content.match(membersRegex);
 
     if (!match) throw new Error(`Domain "${domain}" not found in config file.`);
@@ -87,21 +90,41 @@ async function removeMember(content: string, domain: string, email: string): Pro
     return content.replace(membersRegex, `$1${newMembersString}$3`);
 }
 
-async function updateLead(content: string, domain: string, newLeadEmail: string): Promise<string> {
-    // Regex to find the lead property for a specific domain.
-    // It captures the part before the email ('group 1') and the email itself ('group 2').
-    const leadRegex = new RegExp(`('${domain}':\\s*{\\s*lead:\\s*)('.*?')`, 'm');
+async function addLead(content: string, domain: string, email: string): Promise<string> {
+    const leadsRegex = new RegExp(`('${domain}':\\s*{\\s*leads:\\s*\\[)([\\s\\S]*?)(\\s*\\])`, 'm');
+    const match = content.match(leadsRegex);
 
-    const match = content.match(leadRegex);
+    if (!match) throw new Error(`Domain "${domain}" not found in config file.`);
 
-    if (!match) {
-        throw new Error(`Domain "${domain}" not found or lead property is missing.`);
-    }
+    const existingLeadsString = match[2];
+    const existingLeads = existingLeadsString.split(',').map(e => e.trim().replace(/['"]/g, '')).filter(Boolean);
 
-    // The part to be replaced is the full match.
-    // We construct the replacement using the captured group 1 and the new email.
-    return content.replace(leadRegex, `$1'${newLeadEmail}'`);
+    if (existingLeads.includes(email)) throw new Error('This email is already a lead for this domain.');
+    
+    const newLeadsString = existingLeads.length > 0 
+        ? `${existingLeadsString.trim()},\n            '${email}'` 
+        : `\n            '${email}'\n        `;
+    
+    return content.replace(leadsRegex, `$1${newLeadsString}$3`);
 }
+
+async function removeLead(content: string, domain: string, email: string): Promise<string> {
+    const leadsRegex = new RegExp(`('${domain}':\\s*{\\s*leads:\\s*\\[)([\\s\\S]*?)(\\s*\\])`, 'm');
+    const match = content.match(leadsRegex);
+
+    if (!match) throw new Error(`Domain "${domain}" not found in config file.`);
+    
+    const existingLeadsString = match[2];
+    const existingLeads = existingLeadsString.split(',').map(e => e.trim().replace(/['"]/g, '')).filter(Boolean);
+
+    if (!existingLeads.includes(email)) throw new Error('Email not found in this domain\'s leads.');
+
+    const newLeads = existingLeads.filter(e => e !== email);
+    const newLeadsString = newLeads.length > 0 ? `\n            ${newLeads.map(e => `'${e}'`).join(',\n            ')}\n        ` : '';
+
+    return content.replace(leadsRegex, `$1${newLeadsString}$3`);
+}
+
 
 async function addSpecialRole(content: string, email: string, role: 'super-admin' | 'admin'): Promise<string> {
     const specialRolesRegex = /(export const specialRolesConfig: Record<string, 'super-admin' | 'admin'> = {)([\s\S]*?)(};)/m;
