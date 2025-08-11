@@ -9,17 +9,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, Edit, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function ManagePermissionsPage() {
   const [isSubmitting, setIsSubmitting] = React.useState<Record<string, boolean>>({});
   const [newMemberEmail, setNewMemberEmail] = React.useState<Record<string, string>>({});
   const [editingLead, setEditingLead] = React.useState<string | null>(null);
   const [newLeadEmail, setNewLeadEmail] = React.useState<Record<string, string>>({});
+  
+  const [newSpecialRoleEmail, setNewSpecialRoleEmail] = React.useState('');
+  const [newSpecialRole, setNewSpecialRole] = React.useState<'super-admin' | 'admin'>('admin');
+
   const { toast } = useToast();
 
-  const handleApiCall = async (body: any) => {
-    const domain = body.domain;
-    setIsSubmitting(prev => ({ ...prev, [domain]: true }));
+  const handleApiCall = async (body: any, id: string = 'global') => {
+    setIsSubmitting(prev => ({ ...prev, [id]: true }));
 
     try {
       const response = await fetch('/api/update-permissions', {
@@ -38,7 +42,7 @@ export default function ManagePermissionsPage() {
         description: result.message,
       });
 
-      setTimeout(() => window.location.reload(), 2000);
+      setTimeout(() => window.location.reload(), 1500);
 
     } catch (error) {
       toast({
@@ -47,7 +51,7 @@ export default function ManagePermissionsPage() {
         description: (error as Error).message,
       });
     } finally {
-      setIsSubmitting(prev => ({ ...prev, [domain]: false }));
+      setIsSubmitting(prev => ({ ...prev, [id]: false }));
       setEditingLead(null);
     }
   };
@@ -58,12 +62,12 @@ export default function ManagePermissionsPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Email cannot be empty.' });
       return;
     }
-    handleApiCall({ action: 'add-member', domain: domainName, email });
+    handleApiCall({ action: 'add-member', domain: domainName, email }, domainName);
     setNewMemberEmail(prev => ({ ...prev, [domainName]: '' }));
   };
 
   const handleRemoveMember = (domainName: string, email: string) => {
-    handleApiCall({ action: 'remove-member', domain: domainName, email });
+    handleApiCall({ action: 'remove-member', domain: domainName, email }, domainName);
   };
   
   const handleUpdateLead = (domainName: string) => {
@@ -72,8 +76,21 @@ export default function ManagePermissionsPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Lead email cannot be empty.' });
       return;
     }
-    handleApiCall({ action: 'update-lead', domain: domainName, newLeadEmail: email });
+    handleApiCall({ action: 'update-lead', domain: domainName, newLeadEmail: email }, domainName);
   };
+
+  const handleAddSpecialRole = () => {
+    if (!newSpecialRoleEmail || !newSpecialRoleEmail.trim()) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Email cannot be empty.' });
+        return;
+    }
+    handleApiCall({ action: 'add-special-role', email: newSpecialRoleEmail, role: newSpecialRole }, 'special-roles');
+    setNewSpecialRoleEmail('');
+  }
+
+  const handleRemoveSpecialRole = (email: string) => {
+     handleApiCall({ action: 'remove-special-role', email }, 'special-roles');
+  }
 
 
   return (
@@ -93,18 +110,55 @@ export default function ManagePermissionsPage() {
         <CardContent className="space-y-4">
             <div>
                 <h4 className="font-semibold text-sm mb-2">Super Admins</h4>
-                {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').map(([email]) => (
-                     <Badge key={email} variant="destructive" className="mr-2">{email}</Badge>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').map(([email]) => (
+                        <Badge key={email} variant="destructive" className="flex items-center gap-2">
+                            {email}
+                            <button onClick={() => handleRemoveSpecialRole(email)} disabled={isSubmitting['special-roles']}>
+                                <Trash2 className="h-3 w-3 hover:text-white/80" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
             </div>
             <Separator />
              <div>
                 <h4 className="font-semibold text-sm mb-2">Admins</h4>
-                {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').map(([email]) => (
-                     <Badge key={email} variant="secondary" className="mr-2">{email}</Badge>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').map(([email]) => (
+                        <Badge key={email} variant="secondary" className="flex items-center gap-2">
+                            {email}
+                             <button onClick={() => handleRemoveSpecialRole(email)} disabled={isSubmitting['special-roles']}>
+                                <Trash2 className="h-3 w-3 hover:text-black/80" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
             </div>
         </CardContent>
+         <CardFooter>
+              <div className="w-full flex flex-col sm:flex-row gap-2">
+                <Input
+                  placeholder="new.admin@example.com"
+                  value={newSpecialRoleEmail}
+                  onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
+                  disabled={isSubmitting['special-roles']}
+                />
+                <Select value={newSpecialRole} onValueChange={(value) => setNewSpecialRole(value as 'super-admin' | 'admin')}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="super-admin">Super Admin</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Button onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']} className="w-full sm:w-auto">
+                  {isSubmitting['special-roles'] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2" />}
+                  Add Special Role
+                </Button>
+              </div>
+            </CardFooter>
       </Card>
 
       <div className="grid gap-8 md:grid-cols-1 lg:grid-cols-2">
@@ -124,15 +178,15 @@ export default function ManagePermissionsPage() {
                             onChange={(e) => setNewLeadEmail(prev => ({...prev, [domainName]: e.target.value}))}
                             disabled={isSubmitting[domainName]}
                         />
-                        <Button size="icon_sm" onClick={() => handleUpdateLead(domainName)} disabled={isSubmitting[domainName]}>
+                        <Button size="icon" onClick={() => handleUpdateLead(domainName)} disabled={isSubmitting[domainName]}>
                             <Save/>
                         </Button>
-                        <Button size="icon_sm" variant="ghost" onClick={() => setEditingLead(null)}><X/></Button>
+                        <Button size="icon" variant="ghost" onClick={() => setEditingLead(null)}><X/></Button>
                     </div>
                 ) : (
                     <div className="flex items-center justify-between">
                         <Badge variant="outline">{config.lead}</Badge>
-                        <Button variant="ghost" size="icon_sm" onClick={() => { setEditingLead(domainName); setNewLeadEmail(prev => ({...prev, [domainName]: config.lead}))}}>
+                        <Button variant="ghost" size="icon" onClick={() => { setEditingLead(domainName); setNewLeadEmail(prev => ({...prev, [domainName]: config.lead}))}}>
                             <Edit className="h-4 w-4"/>
                         </Button>
                     </div>
@@ -146,7 +200,7 @@ export default function ManagePermissionsPage() {
                     config.members.map((member) => (
                       <div key={member} className="flex items-center justify-between bg-secondary/50 p-2 rounded-md">
                         <span className="text-sm">{member}</span>
-                         <Button variant="ghost" size="icon_sm" onClick={() => handleRemoveMember(domainName, member)} disabled={isSubmitting[domainName]}>
+                         <Button variant="ghost" size="icon" onClick={() => handleRemoveMember(domainName, member)} disabled={isSubmitting[domainName]}>
                             <Trash2 className="text-destructive h-4 w-4"/>
                         </Button>
                       </div>
@@ -163,7 +217,7 @@ export default function ManagePermissionsPage() {
                   placeholder="new.member@example.com"
                   value={newMemberEmail[domainName] || ''}
                   onChange={(e) => setNewMemberEmail(prev => ({ ...prev, [domainName]: e.target.value }))}
-                  disabled={isSubmitting[domainName]}
+                  disabled={isSubmitting[domainName] || editingLead === domainName}
                 />
                 <Button onClick={() => handleAddMember(domainName)} disabled={isSubmitting[domainName] || editingLead === domainName} className="w-full sm:w-auto">
                   {isSubmitting[domainName] ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2" />}
