@@ -2,8 +2,8 @@ import type { User } from './types';
 
 // Configuration for special roles not tied to a domain
 export const specialRolesConfig: Record<string, 'super-admin' | 'admin'> = {
-    'mrsrikart@gmail.com': 'super-admin',
-    'admin@taskmaster.pro': 'admin',
+    'super-admin@taskmaster.pro': 'super-admin',
+    'admin2@gmail.com': 'admin',
 };
 
 // Configuration for domains, their leads, and their members
@@ -19,7 +19,9 @@ export const domainConfig: Record<User['domain'] & string, { leads: string[], me
         ]
     },
     'Electrical': {
-        leads: ['electricaldomainlead@gmail.com'],
+        leads: [
+            'electricaldomainlead@gmail.com'
+        ],
         members: [
             'cadmvj69@gmail.com'
         ]
