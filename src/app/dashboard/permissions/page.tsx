@@ -21,9 +21,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useRouter } from 'next/navigation';
-import { collection, onSnapshot, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import type { User as UserType } from '@/lib/types';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 
 interface DomainConfig {
@@ -36,6 +37,7 @@ type SpecialRolesConfig = Record<string, 'super-admin' | 'admin'>;
 
 
 export default function ManagePermissionsPage() {
+  const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
   const [domainConfig, setDomainConfig] = React.useState<DomainConfig[]>([]);
   const [specialRolesConfig, setSpecialRolesConfig] = React.useState<SpecialRolesConfig>({});
   const [isLoading, setIsLoading] = React.useState(true);
@@ -53,6 +55,16 @@ export default function ManagePermissionsPage() {
   const router = useRouter();
 
   React.useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if(userDoc.exists()) {
+          setCurrentUser({ id: user.uid, ...userDoc.data() } as UserType);
+        }
+      }
+      // Note: We don't set loading to false here until other listeners are also done.
+    });
+
     const unsubDomains = onSnapshot(collection(db, 'domains'), (snapshot) => {
       const domainsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as DomainConfig));
       setDomainConfig(domainsData);
@@ -67,6 +79,7 @@ export default function ManagePermissionsPage() {
     });
 
     return () => {
+      unsubAuth();
       unsubDomains();
       unsubSpecialRoles();
     };
@@ -147,13 +160,15 @@ export default function ManagePermissionsPage() {
      handleApiCall({ action: 'remove-special-role', email }, 'special-roles');
   }
   
-  if (isLoading) {
+  if (isLoading || !currentUser) {
     return (
         <div className="flex h-screen w-screen items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
     );
   }
+  
+  const isSuperAdmin = currentUser.role === 'super-admin';
 
   return (
     <div className="w-full h-full flex flex-col space-y-6">
@@ -170,56 +185,60 @@ export default function ManagePermissionsPage() {
           <CardDescription>These users have elevated privileges across all domains.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div>
-                <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-sm">Super Admins</h4>
-                    <Button variant="ghost" size="icon" onClick={() => { setAddingRole('super-admin'); setNewSpecialRoleEmail('')}}>
-                        <PlusCircle className="h-4 w-4"/>
-                    </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').map(([email]) => (
-                        <Badge key={email} variant="destructive" className="flex items-center gap-2">
-                            {email}
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <button disabled={isSubmitting['special-roles']}>
-                                        <Trash2 className="h-3 w-3 hover:text-white/80" />
-                                    </button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will remove <span className='font-bold'>{email}</span> from the Super Admin role. They will lose all super admin privileges.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleRemoveSpecialRole(email)}>Confirm</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </Badge>
-                    ))}
-                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').length === 0 && <p className="text-xs text-muted-foreground">No super admins assigned.</p>}
-                </div>
-                 {addingRole === 'super-admin' && (
-                    <div className="flex gap-2 mt-2">
-                        <Input 
-                            value={newSpecialRoleEmail}
-                            placeholder="super.admin@example.com"
-                            onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
-                            disabled={isSubmitting['special-roles']}
-                        />
-                        <Button size="icon" onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']}>
-                            {isSubmitting['special-roles'] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+            {isSuperAdmin && (
+              <>
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-sm">Super Admins</h4>
+                        <Button variant="ghost" size="icon" onClick={() => { setAddingRole('super-admin'); setNewSpecialRoleEmail('')}}>
+                            <PlusCircle className="h-4 w-4"/>
                         </Button>
-                        <Button size="icon" variant="ghost" onClick={() => setAddingRole(null)}><X/></Button>
                     </div>
-                )}
-            </div>
-            <Separator />
+                    <div className="flex flex-wrap gap-2">
+                        {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').map(([email]) => (
+                            <Badge key={email} variant="destructive" className="flex items-center gap-2">
+                                {email}
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <button disabled={isSubmitting['special-roles']}>
+                                            <Trash2 className="h-3 w-3 hover:text-white/80" />
+                                        </button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will remove <span className='font-bold'>{email}</span> from the Super Admin role. They will lose all super admin privileges.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleRemoveSpecialRole(email)}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </Badge>
+                        ))}
+                        {Object.entries(specialRolesConfig).filter(([,role]) => role === 'super-admin').length === 0 && <p className="text-xs text-muted-foreground">No super admins assigned.</p>}
+                    </div>
+                    {addingRole === 'super-admin' && (
+                        <div className="flex gap-2 mt-2">
+                            <Input 
+                                value={newSpecialRoleEmail}
+                                placeholder="super.admin@example.com"
+                                onChange={(e) => setNewSpecialRoleEmail(e.target.value)}
+                                disabled={isSubmitting['special-roles']}
+                            />
+                            <Button size="icon" onClick={handleAddSpecialRole} disabled={isSubmitting['special-roles']}>
+                                {isSubmitting['special-roles'] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => setAddingRole(null)}><X/></Button>
+                        </div>
+                    )}
+                </div>
+                <Separator />
+              </>
+            )}
              <div>
                 <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-sm">Admins</h4>

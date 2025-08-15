@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
   
-  const isSuperAdmin = user.role === 'super-admin';
+  const canManagePermissions = user.role === 'super-admin' || user.role === 'admin';
   const formattedUserName = formatUserName(user, allUsers);
 
   return (
@@ -122,7 +122,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </SidebarMenuButton>
                  </Link>
               </SidebarMenuItem>
-              {isSuperAdmin && (
+              {canManagePermissions && (
                 <>
                   <SidebarMenuItem>
                     <Link href="/dashboard/permissions" className='w-full'>
