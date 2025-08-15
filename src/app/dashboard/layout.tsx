@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -10,6 +11,7 @@ import {
   Database,
   Hammer,
   Lightbulb,
+  BookOpen,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -160,6 +162,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <SidebarMenuButton tooltip="Suggestions" isActive={pathname === '/dashboard/suggestions'}>
                     <Lightbulb />
                     <span>Suggestions</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/dashboard/library" className="w-full">
+                  <SidebarMenuButton tooltip="Library" isActive={pathname.startsWith('/dashboard/library')}>
+                    <BookOpen />
+                    <span>Library</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

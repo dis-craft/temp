@@ -22,13 +22,17 @@ const domainConfig = {
   "Software": {
     "leads": [],
     "members": []
+  },
+  "Documentation": {
+      "leads": ["doclead@example.com"],
+      "members": []
   }
 };
 
 const specialRolesConfig = {
     "super-admin@taskmaster.pro": "super-admin",
-    "vyomsetuclub@gmail.com": "super-admin"
-
+    "vyomsetuclub@gmail.com": "super-admin",
+    "doclead@example.com": "domain-lead",
 };
 
 

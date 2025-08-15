@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -13,6 +14,7 @@ export type LogCategory =
     | 'Site Status'
     | 'Submissions'
     | 'Suggestions'
+    | 'Documentation'
     | 'Error';
 
 export interface Log {

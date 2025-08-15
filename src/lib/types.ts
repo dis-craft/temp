@@ -1,11 +1,12 @@
 
+
 export interface User {
   id: string;
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
   role: 'super-admin' | 'admin' | 'domain-lead' | 'member';
-  domain?: 'Mechanical' | 'Electrical' | 'Software' | string | null;
+  domain?: 'Mechanical' | 'Electrical' | 'Software' | 'Documentation' | string | null;
 }
 
 export interface Comment {
@@ -69,4 +70,24 @@ export interface Suggestion {
   timestamp: string;
   domain: string | null;
   responses: SuggestionResponse[];
+}
+
+// Documentation Hub Types
+export interface DocumentationItem {
+    id: string;
+    name: string;
+    parentId: string | null;
+    createdAt: string;
+    createdBy: User;
+    type: 'folder' | 'file';
+}
+
+export interface DocumentationFolder extends DocumentationItem {
+    type: 'folder';
+}
+
+export interface DocumentationFile extends DocumentationItem {
+    type: 'file';
+    filePath: string; // Key for R2
+    mimeType: string;
 }
