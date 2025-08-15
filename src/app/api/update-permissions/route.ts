@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, deleteField, writeBatch } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, deleteDoc, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export async function POST(req: NextRequest) {
@@ -19,6 +19,27 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: 'Domain already exists.' }, { status: 409 });
             }
             await setDoc(domainRef, { name: domain, leads: [], members: [] });
+            return NextResponse.json({ message: 'Domain created successfully.' }, { status: 200 });
+
+        } else if (action === 'delete-domain') {
+            if (!domain) return NextResponse.json({ error: 'Domain name is required.' }, { status: 400 });
+
+            const batch = writeBatch(db);
+            
+            // Delete the domain document
+            const domainRef = doc(db, 'domains', domain);
+            batch.delete(domainRef);
+
+            // Find and delete all tasks associated with the domain
+            const tasksQuery = query(collection(db, 'tasks'), where('domain', '==', domain));
+            const tasksSnapshot = await getDocs(tasksQuery);
+            tasksSnapshot.forEach(taskDoc => {
+                batch.delete(taskDoc.ref);
+            });
+
+            await batch.commit();
+            return NextResponse.json({ message: `Domain "${domain}" and its tasks deleted successfully.` }, { status: 200 });
+
         } else if (action === 'add-member' || action === 'remove-member' || action === 'add-lead' || action === 'remove-lead') {
              if (!email || !domain) return NextResponse.json({ error: 'Email and domain are required.' }, { status: 400 });
              const domainRef = doc(db, 'domains', domain);
@@ -45,7 +66,9 @@ export async function POST(req: NextRequest) {
                 if (!role) return NextResponse.json({ error: 'Role is required.' }, { status: 400 });
                  await updateDoc(specialRolesRef, { [email]: role });
             } else if (action === 'remove-special-role') {
-                 await updateDoc(specialRolesRef, { [email]: deleteField() });
+                 const currentRoles = docSnap.data() || {};
+                 delete currentRoles[email];
+                 await setDoc(specialRolesRef, currentRoles);
             }
         }
         else {

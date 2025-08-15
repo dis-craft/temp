@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, X, Eye, KeyRound } from 'lucide-react';
+import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, X, Eye, KeyRound, MoreHorizontal, Edit, View } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -20,6 +20,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db, auth, sendPasswordReset } from '@/lib/firebase';
@@ -61,7 +68,8 @@ export default function ManagePermissionsPage() {
   React.useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
       if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
         if(userDoc.exists()) {
           const userData = { id: user.uid, ...userDoc.data() } as UserType;
           setCurrentUser(userData);
@@ -106,7 +114,7 @@ export default function ManagePermissionsPage() {
 
       toast({
         title: 'Success!',
-        description: "Permissions updated successfully.",
+        description: result.message || "Permissions updated successfully.",
       });
 
     } catch (error) {
@@ -132,6 +140,10 @@ export default function ManagePermissionsPage() {
       return;
     }
     handleApiCall({ action: 'add-domain', domain: newDomainName }, 'add-domain');
+  }
+
+  const handleDeleteDomain = (domainName: string) => {
+    handleApiCall({ action: 'delete-domain', domain: domainName }, `delete-${domainName}`);
   }
 
   const handleAddMember = (domainName: string) => {
@@ -295,9 +307,11 @@ export default function ManagePermissionsPage() {
              <div>
                 <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-sm">Admins</h4>
-                     <Button variant="ghost" size="icon" onClick={() => { setAddingRole('admin'); setNewSpecialRoleEmail('')}}>
-                        <PlusCircle className="h-4 w-4"/>
-                    </Button>
+                     {isSuperAdmin && (
+                        <Button variant="ghost" size="icon" onClick={() => { setAddingRole('admin'); setNewSpecialRoleEmail('')}}>
+                           <PlusCircle className="h-4 w-4"/>
+                       </Button>
+                     )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').map(([email]) => (
@@ -350,12 +364,55 @@ export default function ManagePermissionsPage() {
         {domainConfig.map((config) => (
           <Card key={config.id} className="flex flex-col">
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-start">
                 <CardTitle className="flex items-center gap-2 font-headline">{config.id}</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard?domain=${config.id}`)}>
-                    <Eye className="mr-2 h-4 w-4"/>
-                    View Tasks
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="h-4 w-4"/>
+                      <span className="sr-only">Manage Domain</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => router.push(`/dashboard?domain=${config.id}`)}>
+                      <View className="mr-2 h-4 w-4"/>
+                      View Tasks
+                    </DropdownMenuItem>
+                    {isSuperAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                              onSelect={(e) => e.preventDefault()}
+                            >
+                                <Trash2 className="mr-2 h-4 w-4"/>
+                                Delete Domain
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the <strong>{config.id}</strong> domain and all of its associated tasks.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteDomain(config.id)}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <CardDescription>Manage the members and leads of the {config.id} domain.</CardDescription>
             </CardHeader>
