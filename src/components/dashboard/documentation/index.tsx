@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Upload, FolderPlus, BookOpen } from 'lucide-react';
+import { Loader2, Plus, Upload, FolderPlus, BookOpen, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { DocumentationItem, User } from '@/lib/types';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -15,6 +15,8 @@ import ContentDisplay from './content-display';
 import { CreateFolderModal } from './create-folder-modal';
 import { UploadFileModal } from './upload-file-modal';
 import { EditPermissionsModal } from './edit-permissions-modal';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 export default function Documentation() {
@@ -26,12 +28,14 @@ export default function Documentation() {
     const [isFileModalOpen, setIsFileModalOpen] = React.useState(false);
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = React.useState(false);
     const [selectedItemForPermissions, setSelectedItemForPermissions] = React.useState<DocumentationItem | null>(null);
-
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [isTreeNavOpen, setIsTreeNavOpen] = React.useState(false);
 
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const currentFolderId = searchParams.get('folderId') || null;
+    const isMobile = useIsMobile();
+
 
     React.useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
@@ -212,15 +216,36 @@ export default function Documentation() {
             </div>
         );
     }
+    
+    const TreeNavContent = () => (
+        <div className='p-4'>
+            <h2 className="text-lg font-semibold mb-2 font-headline">Folders</h2>
+            <TreeNav items={items} onLinkClick={() => setIsTreeNavOpen(false)} />
+        </div>
+    );
 
     return (
         <div className="flex h-full flex-col space-y-6">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
-                        <BookOpen /> Documentation
-                    </h1>
-                    <p className="text-muted-foreground">Official documentation, resources, and project deliverables.</p>
+                 <div className="flex items-center gap-2">
+                    {isMobile && (
+                         <Sheet open={isTreeNavOpen} onOpenChange={setIsTreeNavOpen}>
+                            <SheetTrigger asChild>
+                                <Button variant="outline" size="icon">
+                                    <PanelLeft className="h-5 w-5" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent side="left" className="w-80 p-0">
+                                <TreeNavContent />
+                            </SheetContent>
+                        </Sheet>
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
+                            <BookOpen /> Documentation
+                        </h1>
+                        <p className="text-muted-foreground">Official documentation, resources, and project deliverables.</p>
+                    </div>
                 </div>
                 {canManage && (
                     <div className="flex gap-2">
@@ -236,8 +261,7 @@ export default function Documentation() {
 
             <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] lg:grid-cols-[300px_1fr] gap-6 flex-1 h-full overflow-hidden">
                 <aside className="hidden md:flex flex-col border-r pr-6 overflow-y-auto">
-                   <h2 className="text-lg font-semibold mb-2 font-headline">Folders</h2>
-                   <TreeNav items={items} />
+                   <TreeNavContent/>
                 </aside>
                 <main className="overflow-y-auto h-full">
                     <ContentDisplay 

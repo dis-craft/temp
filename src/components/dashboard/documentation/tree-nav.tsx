@@ -12,9 +12,10 @@ import type { DocumentationItem } from '@/lib/types';
 
 interface TreeNavProps {
     items: DocumentationItem[];
+    onLinkClick?: () => void;
 }
 
-export default function TreeNav({ items }: TreeNavProps) {
+export default function TreeNav({ items, onLinkClick }: TreeNavProps) {
     const searchParams = useSearchParams();
     const currentFolderId = searchParams.get('folderId');
 
@@ -24,6 +25,12 @@ export default function TreeNav({ items }: TreeNavProps) {
         const params = new URLSearchParams(searchParams.toString());
         params.set(name, value);
         return params.toString();
+    };
+
+    const handleLinkClick = () => {
+        if (onLinkClick) {
+            onLinkClick();
+        }
     };
 
     const renderTree = (nodes: DocumentationItem[], level = 0) => {
@@ -46,7 +53,7 @@ export default function TreeNav({ items }: TreeNavProps) {
                     <div className={cn("flex items-center space-x-1 rounded-md", isActive && "bg-secondary")}>
                         {hasChildren ? (
                             <CollapsibleTrigger asChild>
-                                <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow">
+                                <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow" onClick={handleLinkClick}>
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -59,7 +66,7 @@ export default function TreeNav({ items }: TreeNavProps) {
                                 </Link>
                             </CollapsibleTrigger>
                         ) : (
-                             <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow">
+                             <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow" onClick={handleLinkClick}>
                                 <Button
                                     variant={isActive ? 'secondary' : 'ghost'}
                                     size="sm"
@@ -84,7 +91,7 @@ export default function TreeNav({ items }: TreeNavProps) {
 
     return (
         <div className="space-y-1">
-            <Link href="/dashboard/documentation">
+            <Link href="/dashboard/documentation" onClick={handleLinkClick}>
                  <Button
                     variant={!currentFolderId ? 'secondary' : 'ghost'}
                     size="sm"
