@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Folder, FolderOpen } from 'lucide-react';
+import { Folder, FolderOpen, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { cn, buildTree } from '@/lib/utils';
@@ -43,24 +43,33 @@ export default function TreeNav({ items }: TreeNavProps) {
                     className="w-full"
                     style={{ paddingLeft: `${level * 1}rem` }}
                 >
-                    <div className="flex items-center space-x-1">
-                        <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow">
-                             <Button
-                                variant={isActive ? 'secondary' : 'ghost'}
-                                size="sm"
-                                className="w-full justify-start text-left h-8 px-2"
-                             >
-                                 {isActive ? <FolderOpen className="mr-2 h-4 w-4" /> : <Folder className="mr-2 h-4 w-4" />}
-                                 <span className="truncate">{node.name}</span>
-                             </Button>
-                        </Link>
-                        {hasChildren && (
-                             <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 transition-transform duration-200 [&[data-state=open]>path]:-rotate-90"><path d="m6 9 6 6 6-6"></path></svg>
-                                    <span className="sr-only">Toggle</span>
-                                </Button>
+                    <div className={cn("flex items-center space-x-1 rounded-md", isActive && "bg-secondary")}>
+                        {hasChildren ? (
+                            <CollapsibleTrigger asChild>
+                                <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full justify-start text-left h-8 px-2"
+                                    >
+                                        <ChevronRight className="mr-2 h-4 w-4 transition-transform duration-200 [&[data-state=open]>path]:rotate-90" />
+                                        {isActive ? <FolderOpen className="mr-2 h-4 w-4" /> : <Folder className="mr-2 h-4 w-4" />}
+                                        <span className="truncate">{node.name}</span>
+                                    </Button>
+                                </Link>
                             </CollapsibleTrigger>
+                        ) : (
+                             <Link href={`/dashboard/documentation?${createQueryString('folderId', node.id)}`} className="flex-grow">
+                                <Button
+                                    variant={isActive ? 'secondary' : 'ghost'}
+                                    size="sm"
+                                    className="w-full justify-start text-left h-8 px-2"
+                                >
+                                    <span className="w-4 mr-2"></span> {/* Placeholder for alignment */}
+                                    {isActive ? <FolderOpen className="mr-2 h-4 w-4" /> : <Folder className="mr-2 h-4 w-4" />}
+                                    <span className="truncate">{node.name}</span>
+                                </Button>
+                            </Link>
                         )}
                     </div>
                     {hasChildren && (
