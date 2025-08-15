@@ -132,6 +132,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/roles" className="w-full">
+                        <SidebarMenuButton tooltip="Manage Roles" isActive={pathname === '/dashboard/roles'}>
+                            <Database />
+                            <span>Manage Roles</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
                 </>
               )}
             </SidebarMenu>
