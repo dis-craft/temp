@@ -178,7 +178,7 @@ export default function LogsPage() {
 
         const link = document.createElement('a');
         link.setAttribute('href', encodeURI(csvContent));
-        link.setAttribute('download', `taskmaster_logs_${new Date().toISOString()}.csv`);
+        link.setAttribute('download', `vyomsetu_logs_${new Date().toISOString()}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
