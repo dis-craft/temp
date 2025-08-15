@@ -375,8 +375,8 @@ export default function ManagePermissionsPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onSelect={() => router.push(`/dashboard?domain=${config.id}`)}>
-                      <View className="mr-2 h-4 w-4"/>
-                      View Tasks
+                      <Edit className="mr-2 h-4 w-4"/>
+                      View & Manage Tasks
                     </DropdownMenuItem>
                     {isSuperAdmin && (
                       <>
