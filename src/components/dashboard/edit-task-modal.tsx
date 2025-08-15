@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -347,7 +348,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button type="button" variant="destructive">
-                    <Trash2 className="mr-2" /> Delete Task
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete Task
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
