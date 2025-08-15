@@ -14,6 +14,17 @@ import { db, auth } from '@/lib/firebase';
 import type { SiteStatus, User } from '@/lib/types';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { logActivity } from '@/lib/logger';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 export default function MaintenancePage() {
@@ -27,7 +38,8 @@ export default function MaintenancePage() {
     React.useEffect(() => {
         const unsubAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
             if (user) {
-                const userDoc = await db.collection('users').doc(user.uid).get();
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
                 if (userDoc.exists) {
                     setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
                 }
@@ -143,15 +155,33 @@ export default function MaintenancePage() {
                     </CardHeader>
                     <CardContent>
                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="emergency-shutdown-switch"
-                            checked={siteStatus.emergencyShutdown}
-                            onCheckedChange={(checked) => handleToggle('emergencyShutdown', checked)}
-                            disabled={isSubmitting}
-                          />
-                          <Label htmlFor="emergency-shutdown-switch" className={siteStatus.emergencyShutdown ? 'text-destructive' : ''}>
-                             {siteStatus.emergencyShutdown ? 'Shutdown Enabled' : 'Shutdown Disabled'}
-                          </Label>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Switch
+                                        id="emergency-shutdown-switch"
+                                        checked={siteStatus.emergencyShutdown}
+                                        disabled={isSubmitting}
+                                        // Use a handler to prevent state change before confirmation
+                                        onCheckedChange={(checked) => {}}
+                                    />
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        You are about to {siteStatus.emergencyShutdown ? 'disable' : 'enable'} Emergency Shutdown. This will {siteStatus.emergencyShutdown ? 'restore' : 'block'} access for most users immediately.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleToggle('emergencyShutdown', !siteStatus.emergencyShutdown)}>Confirm</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+
+                            <Label htmlFor="emergency-shutdown-switch" className={siteStatus.emergencyShutdown ? 'text-destructive' : ''}>
+                                {siteStatus.emergencyShutdown ? 'Shutdown Enabled' : 'Shutdown Disabled'}
+                            </Label>
                         </div>
                     </CardContent>
                 </Card>
@@ -165,12 +195,28 @@ export default function MaintenancePage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="maintenance-mode-switch"
-                            checked={siteStatus.maintenanceMode}
-                            onCheckedChange={(checked) => handleToggle('maintenanceMode', checked)}
-                            disabled={isSubmitting}
-                          />
+                          <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                <Switch
+                                    id="maintenance-mode-switch"
+                                    checked={siteStatus.maintenanceMode}
+                                    disabled={isSubmitting}
+                                    onCheckedChange={() => {}}
+                                />
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                    You are about to {siteStatus.maintenanceMode ? 'disable' : 'enable'} Maintenance Mode.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleToggle('maintenanceMode', !siteStatus.maintenanceMode)}>Confirm</AlertDialogAction>
+                                </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                           <Label htmlFor="maintenance-mode-switch">
                             {siteStatus.maintenanceMode ? 'Maintenance Enabled' : 'Maintenance Disabled'}
                           </Label>

@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { app, db } from '@/lib/firebase';
+import { app, db, sendPasswordReset } from '@/lib/firebase';
 import { doc, setDoc, getDoc, collection, getDocs, query } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import type { User } from '@/lib/types';
 import { formatUserName } from '@/lib/utils';
 import { logActivity } from '@/lib/logger';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -31,8 +42,14 @@ const signInSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const forgotPasswordSchema = z.object({
+    email: z.string().email('Please enter a valid email address.'),
+});
+
 export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isResetting, setIsResetting] = React.useState(false);
+  const [isForgotPassDialogOpen, setIsForgotPassDialogOpen] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -44,6 +61,11 @@ export function LoginForm() {
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '' },
+  });
+  
+  const forgotPasswordForm = useForm<z.infer<typeof forgotPasswordSchema>>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: '' },
   });
 
   const getRoleForEmail = async (email: string): Promise<{ role: User['role']; domain?: User['domain'] }> => {
@@ -153,6 +175,27 @@ export function LoginForm() {
     }
   };
 
+  const handlePasswordResetRequest = async (values: z.infer<typeof forgotPasswordSchema>) => {
+    setIsResetting(true);
+    try {
+        await sendPasswordReset(values.email);
+        toast({
+            title: 'Password Reset Email Sent',
+            description: `A password reset link has been sent to ${values.email}.`,
+        });
+        setIsForgotPassDialogOpen(false);
+        forgotPasswordForm.reset();
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Request Failed',
+            description: error.message,
+        });
+    } finally {
+        setIsResetting(false);
+    }
+  };
+
   return (
     <Tabs defaultValue="signin" className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -195,6 +238,45 @@ export function LoginForm() {
                 </Button>
               </form>
             </Form>
+            <div className="mt-4 text-center text-sm">
+                <AlertDialog open={isForgotPassDialogOpen} onOpenChange={setIsForgotPassDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="link" className="p-0 h-auto">Forgot Password?</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Reset Password</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Enter your email address and we will send you a link to reset your password.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <Form {...forgotPasswordForm}>
+                            <form onSubmit={forgotPasswordForm.handleSubmit(handlePasswordResetRequest)} className="space-y-4">
+                                <FormField
+                                    control={forgotPasswordForm.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <FormControl>
+                                                <Input placeholder="name@example.com" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                 <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <Button type="submit" disabled={isResetting}>
+                                        {isResetting && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                        Send Reset Link
+                                    </Button>
+                                </AlertDialogFooter>
+                            </form>
+                        </Form>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         </div>
       </TabsContent>
       <TabsContent value="signup">

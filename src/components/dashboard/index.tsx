@@ -32,56 +32,53 @@ export default function Dashboard() {
            if(userDoc.exists()) {
               const userData = { id: user.uid, ...userDoc.data() } as UserType;
               setCurrentUser(userData);
-
-              // Setup listeners after we have the user
-              setupListeners(userData);
            }
         } else {
             setCurrentUser(null);
         }
         setLoadingUser(false);
     });
-    
-    const setupListeners = (user: UserType) => {
-        // Users listener
-        const usersQuery = query(collection(db, 'users'));
-        const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-            const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType));
-            setAllUsers(usersData);
-        });
 
-        // Tasks listener
-        let tasksQuery;
-        if (user.role === 'domain-lead' && user.domain) {
-            tasksQuery = query(collection(db, 'tasks'), where('domain', '==', user.domain));
-        } else if (user.role === 'admin') {
-            tasksQuery = query(collection(db, 'tasks'), where('assignees', 'array-contains', { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl, role: user.role, domain: user.domain }));
-        }
-        else {
-             tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
-        }
-        const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
-          const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
-          setTasks(tasksData);
-        }, (error) => {
-            console.error("Error fetching tasks:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error loading tasks',
-                description: 'Could not load tasks. You might be missing a required Firestore index. Please check the console for errors.'
-            })
-        });
+    return () => unsubscribeAuth();
+  }, []);
 
-        return () => {
-            unsubscribeUsers();
-            unsubscribeTasks();
-        };
+  React.useEffect(() => {
+    if (!currentUser) return;
+
+    // Users listener
+    const usersQuery = query(collection(db, 'users'));
+    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+        const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType));
+        setAllUsers(usersData);
+    });
+
+    // Tasks listener
+    let tasksQuery;
+    if (currentUser.role === 'domain-lead' && currentUser.domain) {
+        tasksQuery = query(collection(db, 'tasks'), where('domain', '==', currentUser.domain));
+    } else if (currentUser.role === 'admin') {
+        tasksQuery = query(collection(db, 'tasks'), where('assignees', 'array-contains', { id: currentUser.id, name: currentUser.name, email: currentUser.email, avatarUrl: currentUser.avatarUrl, role: currentUser.role, domain: currentUser.domain }));
     }
+    else {
+         tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
+    }
+    const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
+      const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
+      setTasks(tasksData);
+    }, (error) => {
+        console.error("Error fetching tasks:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error loading tasks',
+            description: 'Could not load tasks. You might be missing a required Firestore index. Please check the console for errors.'
+        })
+    });
 
     return () => {
-      unsubscribeAuth();
-    }
-  }, [toast]);
+        unsubscribeUsers();
+        unsubscribeTasks();
+    };
+  }, [currentUser, toast]);
   
   const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
     try {
