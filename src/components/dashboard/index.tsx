@@ -53,7 +53,10 @@ export default function Dashboard() {
         let tasksQuery;
         if (user.role === 'domain-lead' && user.domain) {
             tasksQuery = query(collection(db, 'tasks'), where('domain', '==', user.domain));
-        } else {
+        } else if (user.role === 'admin') {
+            tasksQuery = query(collection(db, 'tasks'), where('assignees', 'array-contains', { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl, role: user.role, domain: user.domain }));
+        }
+        else {
              tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
         }
         const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
@@ -81,7 +84,21 @@ export default function Dashboard() {
   
   const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
     try {
-      const taskWithDomain = { ...newTask, domain: currentUser?.role === 'domain-lead' ? currentUser.domain : domainFilter };
+      let taskWithDomain: Omit<Task, 'id'> & { domain: string | null | undefined } = { ...newTask, domain: null };
+      
+      if (currentUser?.role === 'domain-lead') {
+        taskWithDomain.domain = currentUser.domain;
+      } else if (currentUser?.role === 'super-admin' && domainFilter) {
+        taskWithDomain.domain = domainFilter;
+      } else if (currentUser?.role === 'super-admin' && newTask.assignedToLead) {
+        // If assigned to a lead, infer domain from the first lead
+        const leadUser = allUsers.find(u => u.id === newTask.assignedToLead?.id);
+        if (leadUser) {
+          taskWithDomain.domain = leadUser.domain;
+        }
+      }
+
+
       const docRef = await addDoc(collection(db, 'tasks'), taskWithDomain);
       
       toast({
@@ -194,12 +211,17 @@ export default function Dashboard() {
   }, [currentUser, allUsers, domainFilter]);
 
   const domainLeads = React.useMemo(() => {
-     if (!currentUser || currentUser.role !== 'super-admin') return [];
-     if (domainFilter) {
-         return allUsers.filter(u => u.role === 'domain-lead' && u.domain === domainFilter);
+     if (!currentUser) return [];
+     const leads = allUsers.filter(u => u.role === 'domain-lead');
+     if ((currentUser.role === 'super-admin' || currentUser.role === 'admin') && domainFilter) {
+         return leads.filter(u => u.domain === domainFilter);
      }
-     return allUsers.filter(u => u.role === 'domain-lead');
+     return leads;
   }, [currentUser, allUsers, domainFilter]);
+
+  const admins = React.useMemo(() => {
+    return allUsers.filter(u => u.role === 'admin');
+  }, [allUsers]);
 
   if (loadingUser) {
     return (
@@ -217,7 +239,7 @@ export default function Dashboard() {
     );
   }
   
-  const canCreateTask = hasPermission(['create_task']) && (currentUser.role !== 'super-admin' || domainFilter);
+  const canCreateTask = hasPermission(['create_task']) && (currentUser.role !== 'admin');
   const pageTitle = domainFilter ? `${domainFilter} Domain Tasks` : "Tasks Overview";
   const pageDescription = domainFilter ? `Viewing tasks for the ${domainFilter} domain.` : "Manage and track all your team's tasks.";
 
@@ -257,6 +279,7 @@ export default function Dashboard() {
         allUsers={allUsers}
         assignableUsers={assignableUsers}
         domainLeads={domainLeads}
+        admins={admins}
         currentUser={currentUser}
       />
     </div>

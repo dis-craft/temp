@@ -33,13 +33,11 @@ const taskFormSchema = z.object({
   reminders: z.array(z.string()).optional(),
   attachment: z.any().optional(),
   sendEmail: z.boolean().default(false),
+  assignmentType: z.enum(['domainLeads', 'members', 'admins']).optional(),
 }).refine(data => {
-    if (data.assignedToLead) {
-        return true; // if assignedToLead is present, assignees can be empty
-    }
     return data.assignees && data.assignees.length > 0;
 }, {
-    message: "Either assign to a lead or select at least one member.",
+    message: "At least one assignee is required.",
     path: ["assignees"],
 });
 
@@ -53,10 +51,11 @@ interface CreateTaskModalProps {
   allUsers: User[];
   assignableUsers: User[];
   domainLeads: User[];
+  admins: User[];
   currentUser: User | null;
 }
 
-export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, assignableUsers, domainLeads, currentUser }: CreateTaskModalProps) {
+export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, assignableUsers, domainLeads, admins, currentUser }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
@@ -68,21 +67,29 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
       title: '',
       description: '',
       assignees: [],
-      assignedToLead: '',
       reminders: [],
       sendEmail: false,
+      assignmentType: isSuperAdmin ? 'domainLeads' : 'members'
     },
   });
 
   const descriptionValue = form.watch('description');
-  const assignedToLeadValue = form.watch('assignedToLead');
+  const assignmentType = form.watch('assignmentType');
 
+  const getAssignableUsersForType = (type?: 'domainLeads' | 'members' | 'admins') => {
+      switch(type) {
+          case 'domainLeads': return domainLeads;
+          case 'members': return assignableUsers;
+          case 'admins': return admins;
+          default: return assignableUsers;
+      }
+  }
+  
+  const currentAssignableUsers = isSuperAdmin ? getAssignableUsersForType(assignmentType) : assignableUsers;
 
   React.useEffect(() => {
-    if (assignedToLeadValue) {
-        form.setValue('assignees', []);
-    }
-  }, [assignedToLeadValue, form]);
+    form.setValue('assignees', []);
+  }, [assignmentType, form]);
 
   const handleSuggestion = async () => {
     if (!descriptionValue) {
@@ -97,12 +104,10 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
     try {
       const result = await suggestAssignees({ taskDescription: descriptionValue });
       
-      if (!isSuperAdmin) {
-          const suggestedUserIds = result.suggestedAssignees
-            .map(name => allUsers.find(u => u.name === name)?.id)
-            .filter((id): id is string => !!id);
-          form.setValue('assignees', suggestedUserIds);
-      }
+      const suggestedUserIds = result.suggestedAssignees
+        .map(name => currentAssignableUsers.find(u => u.name === name)?.id)
+        .filter((id): id is string => !!id);
+      form.setValue('assignees', suggestedUserIds);
       
       form.setValue('reminders', result.suggestedReminderIntervals);
 
@@ -160,11 +165,13 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
     let assignees: User[] = [];
     let assignedToLead: User | undefined = undefined;
     let status: Task['status'] = 'Pending';
-
-    if (data.assignedToLead) {
-        assignedToLead = domainLeads.find(l => l.id === data.assignedToLead);
+    
+    if (isSuperAdmin && data.assignmentType === 'domainLeads') {
+        const leadUsers = allUsers.filter(u => data.assignees!.includes(u.id));
+        // For simplicity, assigning to the first selected lead if multiple are chosen
+        assignedToLead = leadUsers[0]; 
         status = 'Unassigned';
-    } else if (data.assignees) {
+    } else {
         assignees = allUsers.filter(u => data.assignees!.includes(u.id));
     }
 
@@ -181,8 +188,8 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
       description: data.description,
       dueDate: data.dueDate.toISOString(),
       status,
-      assignees,
-      assignedToLead,
+      assignees: status !== 'Unassigned' ? assignees : [],
+      assignedToLead: status === 'Unassigned' ? assignedToLead : undefined,
       comments: [],
       submissions: [],
       attachment: attachmentPath,
@@ -241,40 +248,40 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
                   Get AI Suggestions
                 </Button>
 
-                {isSuperAdmin ? (
+                {isSuperAdmin && (
                     <FormField
                       control={form.control}
-                      name="assignedToLead"
+                      name="assignmentType"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Assign to Domain Lead</FormLabel>
+                          <FormLabel>Assign To</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select a domain lead" />
+                                    <SelectValue placeholder="Select a group to assign the task to" />
                                 </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                {domainLeads.map(lead => (
-                                    <SelectItem key={lead.id} value={lead.id}>
-                                        {formatUserName(lead, allUsers)}
-                                    </SelectItem>
-                                ))}
+                                    <SelectItem value="domainLeads">Domain Leads</SelectItem>
+                                    <SelectItem value="members">Members</SelectItem>
+                                    <SelectItem value="admins">Admins</SelectItem>
                                 </SelectContent>
                             </Select>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                ) : (
-                    <FormField
-                    control={form.control}
-                    name="assignees"
-                    render={() => (
-                        <FormItem>
-                        <FormLabel>Assignees</FormLabel>
+                )}
+                
+                <FormField
+                control={form.control}
+                name="assignees"
+                render={() => (
+                    <FormItem>
+                    <FormLabel>Assignees</FormLabel>
+                     <ScrollArea className="h-40">
                         <div className="grid grid-cols-2 gap-4">
-                            {assignableUsers.map((user) => (
+                            {currentAssignableUsers.map((user) => (
                                 <FormField
                                 key={user.id}
                                 control={form.control}
@@ -289,6 +296,10 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
                                         <Checkbox
                                             checked={field.value?.includes(user.id)}
                                             onCheckedChange={(checked) => {
+                                            // for domain leads, only allow one selection
+                                            if (isSuperAdmin && assignmentType === 'domainLeads') {
+                                                return field.onChange(checked ? [user.id] : [])
+                                            }
                                             return checked
                                                 ? field.onChange([...(field.value || []), user.id])
                                                 : field.onChange(
@@ -308,11 +319,11 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
                                 />
                             ))}
                             </div>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
+                     </ScrollArea>
+                    <FormMessage />
+                    </FormItem>
                 )}
+                />
                 
                 <div className="grid grid-cols-2 gap-4">
                     <FormField
