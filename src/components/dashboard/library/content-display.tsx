@@ -5,12 +5,13 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
-import { Folder, FileText, MoreVertical, Edit, Trash2, Download } from 'lucide-react';
+import { Folder, FileText, MoreVertical, Edit, Trash2, Download, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from '@/components/ui/table';
@@ -38,9 +39,10 @@ interface ContentDisplayProps {
     canManage: boolean;
     onRename: (id: string, newName: string, type: 'folder' | 'file') => void;
     onDelete: (id: string, type: 'folder' | 'file') => void;
+    onEditPermissions: (item: DocumentationItem) => void;
 }
 
-export default function ContentDisplay({ items, currentFolderId, canManage, onRename, onDelete }: ContentDisplayProps) {
+export default function ContentDisplay({ items, currentFolderId, canManage, onRename, onDelete, onEditPermissions }: ContentDisplayProps) {
     const [renamingItem, setRenamingItem] = React.useState<DocumentationItem | null>(null);
     const [newName, setNewName] = React.useState('');
     const { toast } = useToast();
@@ -163,9 +165,13 @@ export default function ContentDisplay({ items, currentFolderId, canManage, onRe
                                                     <DropdownMenuItem onClick={(e) => {e.stopPropagation(); handleRenameClick(item) }}>
                                                         <Edit className="mr-2 h-4 w-4" /> Rename
                                                     </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={(e) => {e.stopPropagation(); onEditPermissions(item)}}>
+                                                        <Shield className="mr-2 h-4 w-4" /> Edit Permissions
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild>
-                                                          <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                          <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={(e) => e.preventDefault()}>
                                                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                           </DropdownMenuItem>
                                                         </AlertDialogTrigger>

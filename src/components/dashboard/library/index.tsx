@@ -14,6 +14,8 @@ import TreeNav from './tree-nav';
 import ContentDisplay from './content-display';
 import { CreateFolderModal } from './create-folder-modal';
 import { UploadFileModal } from './upload-file-modal';
+import { EditPermissionsModal } from './edit-permissions-modal';
+
 
 export default function Library() {
     const [currentUser, setCurrentUser] = React.useState<User | null>(null);
@@ -22,6 +24,9 @@ export default function Library() {
     const [domains, setDomains] = React.useState<{id: string}[]>([]);
     const [isFolderModalOpen, setIsFolderModalOpen] = React.useState(false);
     const [isFileModalOpen, setIsFileModalOpen] = React.useState(false);
+    const [isPermissionsModalOpen, setIsPermissionsModalOpen] = React.useState(false);
+    const [selectedItemForPermissions, setSelectedItemForPermissions] = React.useState<DocumentationItem | null>(null);
+
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const { toast } = useToast();
@@ -172,6 +177,33 @@ export default function Library() {
         }
     };
 
+    const handleEditPermissions = (item: DocumentationItem) => {
+        setSelectedItemForPermissions(item);
+        setIsPermissionsModalOpen(true);
+    };
+
+    const handleUpdatePermissions = async (itemId: string, viewableBy: string[]) => {
+        setIsSubmitting(true);
+        try {
+            const response = await fetch('/api/documentation', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'x-user': JSON.stringify(currentUser) },
+                body: JSON.stringify({ id: itemId, viewableBy }),
+            });
+            if (!response.ok) {
+                const res = await response.json();
+                throw new Error(res.error || 'Failed to update permissions.');
+            }
+            await fetchItems();
+            toast({ title: 'Success', description: 'Permissions updated successfully.' });
+            setIsPermissionsModalOpen(false);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
 
     if (isLoading) {
         return (
@@ -213,6 +245,7 @@ export default function Library() {
                         currentFolderId={currentFolderId} 
                         onRename={handleRename}
                         onDelete={handleDelete}
+                        onEditPermissions={handleEditPermissions}
                         canManage={canManage || false}
                     />
                 </main>
@@ -233,6 +266,17 @@ export default function Library() {
                 onSubmit={handleUploadFile}
                 domains={domains}
             />
+
+            {selectedItemForPermissions && (
+                <EditPermissionsModal
+                    isOpen={isPermissionsModalOpen}
+                    setIsOpen={setIsPermissionsModalOpen}
+                    isSubmitting={isSubmitting}
+                    onSubmit={handleUpdatePermissions}
+                    item={selectedItemForPermissions}
+                    domains={domains}
+                />
+            )}
         </div>
     );
 }

@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// PUT: Rename a folder or file
+// PUT: Rename a folder or file, or update its permissions
 export async function PUT(req: NextRequest) {
     const user = await getUserFromHeaders();
     if (!(await hasPermission(user))) {
@@ -122,19 +122,38 @@ export async function PUT(req: NextRequest) {
     }
 
     try {
-        const { id, name, type } = await req.json();
-        if (!id || !name) {
-            return NextResponse.json({ error: 'ID and new name are required.' }, { status: 400 });
+        const { id, name, viewableBy, type } = await req.json();
+        if (!id) {
+            return NextResponse.json({ error: 'ID is required.' }, { status: 400 });
         }
 
         const itemRef = doc(db, 'documentation', id);
-        await updateDoc(itemRef, { name });
+        const updates: Partial<DocumentationItem> = {};
 
-        await logActivity(`Renamed documentation ${type}: "${name}" (ID: ${id})`, 'Documentation', user);
-        return NextResponse.json({ message: 'Item renamed successfully.' }, { status: 200 });
+        if (name) {
+            updates.name = name;
+        }
+        if (viewableBy) {
+            updates.viewableBy = viewableBy;
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return NextResponse.json({ error: 'No update data provided.' }, { status: 400 });
+        }
+        
+        await updateDoc(itemRef, updates);
+
+        if (name) {
+            await logActivity(`Renamed documentation ${type}: "${name}" (ID: ${id})`, 'Documentation', user);
+        }
+        if (viewableBy) {
+             await logActivity(`Updated permissions for documentation item (ID: ${id})`, 'Documentation', user);
+        }
+
+        return NextResponse.json({ message: 'Item updated successfully.' }, { status: 200 });
     } catch (error: any) {
-        console.error('Error renaming item:', error);
-        await logActivity(`Error renaming documentation item: ${error.message}`, 'Error', user);
+        console.error('Error updating item:', error);
+        await logActivity(`Error updating documentation item: ${error.message}`, 'Error', user);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

@@ -12,9 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Loader2, FolderPlus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandSeparator } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const folderSchema = z.object({
@@ -52,13 +53,22 @@ export function CreateFolderModal({ isOpen, setIsOpen, isSubmitting, onSubmit, d
     }, [isOpen, form]);
 
     const roleOptions = [
-        ...domains.map(d => ({ value: `${d.id}-lead`, label: `${d.id} Lead` })),
-        ...domains.map(d => ({ value: `${d.id}-member`, label: `${d.id} Member` })),
-        { value: 'admin', label: 'Admin' },
-        { value: 'super-admin', label: 'Super Admin' },
-        { value: 'member', label: 'All Members'},
-        { value: 'domain-lead', label: 'All Domain Leads'},
+        { value: 'super-admin', label: 'Super Admins', group: 'Special Roles' },
+        { value: 'admin', label: 'Admins', group: 'Special Roles' },
+        { value: 'domain-lead', label: 'All Domain Leads', group: 'Broad Roles' },
+        { value: 'member', label: 'All Members', group: 'Broad Roles' },
+        ...domains.map(d => ({ value: `${d.id}-lead`, label: `${d.id} Leads`, group: 'Domain-Specific Roles' })),
+        ...domains.map(d => ({ value: `${d.id}-member`, label: `${d.id} Members`, group: 'Domain-Specific Roles' })),
     ].sort((a,b) => a.label.localeCompare(b.label));
+
+    const groupedOptions = roleOptions.reduce((acc, option) => {
+        if (!acc[option.group]) {
+            acc[option.group] = [];
+        }
+        acc[option.group].push(option);
+        return acc;
+    }, {} as Record<string, typeof roleOptions>);
+
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -95,7 +105,7 @@ export function CreateFolderModal({ isOpen, setIsOpen, isSubmitting, onSubmit, d
                                         <Button
                                         variant="outline"
                                         role="combobox"
-                                        className="w-full justify-between h-auto"
+                                        className="w-full justify-between h-auto min-h-10"
                                         >
                                         <div className="flex gap-1 flex-wrap">
                                             {field.value && field.value.length > 0 ? field.value.map(val => (
@@ -110,30 +120,37 @@ export function CreateFolderModal({ isOpen, setIsOpen, isSubmitting, onSubmit, d
                                     <Command>
                                         <CommandInput placeholder="Search roles..." />
                                         <CommandEmpty>No roles found.</CommandEmpty>
-                                        <CommandGroup className="max-h-48 overflow-y-auto">
-                                        {roleOptions.map((option) => (
-                                            <CommandItem
-                                            value={option.label}
-                                            key={option.value}
-                                            onSelect={() => {
-                                                const currentValue = field.value || [];
-                                                const isSelected = currentValue.includes(option.value);
-                                                const newValue = isSelected
-                                                ? currentValue.filter((v) => v !== option.value)
-                                                : [...currentValue, option.value];
-                                                field.onChange(newValue);
-                                            }}
-                                            >
-                                            <Check
-                                                className={cn(
-                                                "mr-2 h-4 w-4",
-                                                field.value?.includes(option.value) ? "opacity-100" : "opacity-0"
-                                                )}
-                                            />
-                                            {option.label}
-                                            </CommandItem>
-                                        ))}
-                                        </CommandGroup>
+                                        <ScrollArea className="max-h-60">
+                                            {Object.entries(groupedOptions).map(([groupName, options], index) => (
+                                                <React.Fragment key={groupName}>
+                                                    {index > 0 && <CommandSeparator />}
+                                                    <CommandGroup heading={groupName}>
+                                                        {options.map((option) => (
+                                                            <CommandItem
+                                                            value={option.label}
+                                                            key={option.value}
+                                                            onSelect={() => {
+                                                                const currentValue = field.value || [];
+                                                                const isSelected = currentValue.includes(option.value);
+                                                                const newValue = isSelected
+                                                                ? currentValue.filter((v) => v !== option.value)
+                                                                : [...currentValue, option.value];
+                                                                field.onChange(newValue);
+                                                            }}
+                                                            >
+                                                            <Check
+                                                                className={cn(
+                                                                "mr-2 h-4 w-4",
+                                                                field.value?.includes(option.value) ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            {option.label}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </React.Fragment>
+                                            ))}
+                                        </ScrollArea>
                                     </Command>
                                     </PopoverContent>
                                 </Popover>
