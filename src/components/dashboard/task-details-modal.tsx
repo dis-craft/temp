@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn, formatUserName } from '@/lib/utils';
+import { logActivity } from '@/lib/logger';
 
 
 interface TaskDetailsModalProps {
@@ -143,6 +144,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
       }
       
       toast({ title: 'Reminder Sent!', description: 'Emails have been sent to unsubmitted members.' });
+      await logActivity(`Sent submission reminders for task: "${task.title}"`, 'Task Management', currentUser);
 
     } catch (error) {
       console.error('Error sending reminder:', error);
@@ -151,6 +153,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         title: 'Reminder Failed',
         description: (error as Error).message,
       });
+      await logActivity(`Failed to send reminder for task "${task.title}": ${(error as Error).message}`, 'Error', currentUser);
     } finally {
       setIsSendingReminder(false);
     }
@@ -173,6 +176,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
     });
     setCommentText('');
     toast({ title: "Comment posted!" });
+    await logActivity(`Commented on task: "${task.title}"`, 'Task Management', currentUser);
   };
   
   const handleFileUpload = async () => {
@@ -212,6 +216,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         });
 
         toast({ title: "File submitted successfully!" });
+        await logActivity(`Submitted work for task: "${task.title}"`, 'Submissions', currentUser);
 
     } catch (error) {
        console.error('Upload error:', error);
@@ -220,6 +225,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
          title: 'Upload Failed',
          description: (error as Error).message || 'Could not upload the file. Please try again.',
        });
+       await logActivity(`Failed to submit work for task "${task.title}": ${(error as Error).message}`, 'Error', currentUser);
     } finally {
         setIsUploading(false);
         setFileToUpload(null);
@@ -236,6 +242,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         title: 'Submission Deleted',
         description: 'Your submission has been successfully removed.',
       });
+       await logActivity(`Deleted own submission for task: "${task.title}"`, 'Submissions', currentUser);
     } catch (error) {
       console.error('Error deleting submission:', error);
       toast({
@@ -243,6 +250,7 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         title: 'Delete Failed',
         description: 'Could not delete the submission. Please try again.',
       });
+      await logActivity(`Failed to delete submission for task "${task.title}": ${(error as Error).message}`, 'Error', currentUser);
     }
   };
 
@@ -263,9 +271,11 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
         await updateDoc(taskRef, { submissions: updatedSubmissions });
         if (rating !== undefined) {
              toast({ title: 'Rating Saved', description: `You've rated this submission ${rating} out of 5 stars.` });
+             await logActivity(`Rated submission by ${updatedSubmissions.find(s => s.id === submissionId)?.author.email} for task "${task.title}"`, 'Submissions', currentUser);
         }
         if (remark !== undefined) {
              toast({ title: 'Remarks Saved', description: 'Your feedback has been saved.' });
+             await logActivity(`Added remarks for ${updatedSubmissions.find(s => s.id === submissionId)?.author.email} on task "${task.title}"`, 'Submissions', currentUser);
         }
     } catch (error) {
         console.error('Error saving feedback:', error);
@@ -478,10 +488,10 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={() => handleDeleteSubmission(userSubmission)}>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteSubmission(userSubmission)}>
                                         Delete
-                                        </AlertDialogAction>
+                                    </AlertDialogAction>
                                     </AlertDialogFooter>
                                     </AlertDialogContent>
                                   </AlertDialog>

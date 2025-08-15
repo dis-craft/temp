@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { logActivity } from '@/lib/logger';
 
 export default function Dashboard() {
   const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
@@ -105,6 +106,7 @@ export default function Dashboard() {
         title: 'Task Created!',
         description: `Task "${newTask.title}" has been successfully created.`,
       });
+      await logActivity(`Task created: "${newTask.title}"`, 'Task Management', currentUser);
 
       if (sendEmail) {
         const leadOrAssignees = newTask.assignedToLead ? [newTask.assignedToLead] : newTask.assignees;
@@ -125,6 +127,7 @@ export default function Dashboard() {
         description: (e as Error).message,
         variant: 'destructive',
       });
+      await logActivity(`Error creating task: ${(e as Error).message}`, 'Error', currentUser);
     }
   };
 
@@ -136,12 +139,14 @@ export default function Dashboard() {
         title: 'Task Updated!',
         description: 'The task has been successfully updated.',
       });
+       await logActivity(`Task updated: (ID: ${taskId})`, 'Task Management', currentUser);
     } catch (e) {
       toast({
         title: 'Error updating task',
         description: (e as Error).message,
         variant: 'destructive',
       });
+      await logActivity(`Error updating task: ${(e as Error).message}`, 'Error', currentUser);
     }
   };
   
@@ -153,12 +158,14 @@ export default function Dashboard() {
         title: 'Task Deleted!',
         description: 'The task has been successfully deleted.',
       });
+      await logActivity(`Task deleted: (ID: ${taskId})`, 'Task Management', currentUser);
     } catch (e) {
       toast({
         title: 'Error deleting task',
         description: (e as Error).message,
         variant: 'destructive',
       });
+      await logActivity(`Error deleting task: ${(e as Error).message}`, 'Error', currentUser);
     }
   };
 

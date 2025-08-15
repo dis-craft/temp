@@ -41,6 +41,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatUserName } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { logActivity } from '@/lib/logger';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -92,6 +93,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       unsubscribeUsers();
     };
   }, [router]);
+  
+  const handleSignOut = async () => {
+    await logActivity(`User signed out: ${user?.email}`, 'Authentication', user);
+    getAuth(app).signOut();
+  }
   
   if (loading || !user) {
     return (
@@ -170,6 +176,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/logs" className='w-full'>
+                        <SidebarMenuButton tooltip="Activity Logs" isActive={pathname === '/dashboard/logs'}>
+                          <Database />
+                          <span>Activity Logs</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
                 </>
               )}
             </SidebarMenu>
@@ -196,7 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{formattedUserName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => getAuth(app).signOut()}>
+                <DropdownMenuItem onClick={handleSignOut}>
                     Sign Out
                 </DropdownMenuItem>
                 </DropdownMenuContent>

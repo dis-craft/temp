@@ -18,6 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { User } from '@/lib/types';
 import { formatUserName } from '@/lib/utils';
+import { logActivity } from '@/lib/logger';
 
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -93,8 +94,10 @@ export function LoginForm() {
       };
       await setDoc(userRef, newUser);
       userData = newUser;
+      await logActivity(`New user signed up: ${user.email}`, 'Authentication', newUser);
     } else {
         userData = userSnap.data() as User;
+        await logActivity(`User signed in: ${user.email}`, 'Authentication', userData);
     }
 
     const allUsersSnapshot = await getDocs(collection(db, 'users'));
@@ -116,6 +119,7 @@ export function LoginForm() {
       await handleAuth(result.user);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Login Failed', description: error.message });
+      await logActivity(`Google sign-in failed: ${error.message}`, 'Error', null);
     } finally {
       setIsLoading(false);
     }
@@ -129,6 +133,7 @@ export function LoginForm() {
       await handleAuth(userCredential.user, values.name);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign Up Failed', description: error.message });
+      await logActivity(`Email sign-up failed for ${values.email}: ${error.message}`, 'Error', null);
     } finally {
       setIsLoading(false);
     }
@@ -142,6 +147,7 @@ export function LoginForm() {
       await handleAuth(userCredential.user);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Sign In Failed', description: error.message });
+       await logActivity(`Email sign-in failed for ${values.email}: ${error.message}`, 'Error', null);
     } finally {
       setIsLoading(false);
     }

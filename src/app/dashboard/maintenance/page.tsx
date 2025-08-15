@@ -5,23 +5,35 @@ import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Hammer, Power, PowerOff } from 'lucide-react';
+import { Loader2, Hammer, Power } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import type { SiteStatus } from '@/lib/types';
+import { db, auth } from '@/lib/firebase';
+import type { SiteStatus, User } from '@/lib/types';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { logActivity } from '@/lib/logger';
 
 
 export default function MaintenancePage() {
     const [siteStatus, setSiteStatus] = React.useState<SiteStatus | null>(null);
+    const [currentUser, setCurrentUser] = React.useState<User | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
     const [eta, setEta] = React.useState('');
     const { toast } = useToast();
 
     React.useEffect(() => {
+        const unsubAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
+            if (user) {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                if (userDoc.exists) {
+                    setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
+                }
+            }
+        });
+        
         const siteStatusRef = doc(db, 'config', 'siteStatus');
         const unsubscribe = onSnapshot(siteStatusRef, (doc) => {
             if (doc.exists()) {
@@ -37,7 +49,10 @@ export default function MaintenancePage() {
             setIsLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubAuth();
+            unsubscribe();
+        };
     }, []);
 
     const handleToggle = async (mode: 'emergencyShutdown' | 'maintenanceMode', value: boolean) => {
@@ -47,6 +62,8 @@ export default function MaintenancePage() {
 
         try {
             const newStatus: Partial<SiteStatus> = { [mode]: value };
+            const modeName = mode === 'emergencyShutdown' ? 'Emergency Shutdown' : 'Maintenance Mode';
+            
             // If turning on maintenance mode, set the ETA. If turning off, clear it.
             if (mode === 'maintenanceMode') {
                 newStatus.maintenanceETA = value ? eta : '';
@@ -54,14 +71,16 @@ export default function MaintenancePage() {
             await updateDoc(siteStatusRef, newStatus);
             toast({
                 title: 'Success!',
-                description: `Successfully ${value ? 'enabled' : 'disabled'} ${mode === 'emergencyShutdown' ? 'Emergency Shutdown' : 'Maintenance Mode'}.`,
+                description: `Successfully ${value ? 'enabled' : 'disabled'} ${modeName}.`,
             });
+            await logActivity(`${value ? 'Enabled' : 'Disabled'} ${modeName}.`, 'Site Status', currentUser);
         } catch (error) {
             toast({
                 variant: 'destructive',
                 title: 'Operation Failed',
                 description: (error as Error).message,
             });
+            await logActivity(`Failed to change site status for ${mode}: ${(error as Error).message}`, 'Error', currentUser);
         } finally {
             setIsSubmitting(false);
         }
@@ -84,12 +103,14 @@ export default function MaintenancePage() {
                 title: 'ETA Updated!',
                 description: 'Maintenance completion time has been set.',
             });
+            await logActivity(`Set maintenance mode ETA to: "${eta}"`, 'Site Status', currentUser);
         } catch (error) {
              toast({
                 variant: 'destructive',
                 title: 'Update Failed',
                 description: (error as Error).message,
             });
+             await logActivity(`Failed to set ETA: ${(error as Error).message}`, 'Error', currentUser);
         } finally {
             setIsSubmitting(false);
         }

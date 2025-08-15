@@ -103,7 +103,10 @@ export default function ManagePermissionsPage() {
     try {
       const response = await fetch('/api/update-permissions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'x-user': JSON.stringify(currentUser) 
+        },
         body: JSON.stringify(body),
       });
 
