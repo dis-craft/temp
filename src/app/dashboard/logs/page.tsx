@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Database, AlertCircle, User, Shield, Briefcase, Power, Upload, Calendar as CalendarIcon, Search, ChevronsRight, ChevronsLeft, Download } from 'lucide-react';
 import type { Log } from '@/lib/logger';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -276,8 +276,8 @@ export default function LogsPage() {
                                     </TableCell>
                                     <TableCell className="font-medium">{log.message}</TableCell>
                                     <TableCell className="text-muted-foreground">{log.user?.name || log.user?.email || 'System'}</TableCell>
-                                    <TableCell className="text-right text-muted-foreground text-xs" title={log.timestamp ? format((log.timestamp as Timestamp).toDate(), 'PPpp') : ''}>
-                                       {log.timestamp ? formatDistanceToNow((log.timestamp as Timestamp).toDate(), { addSuffix: true }) : 'N/A'}
+                                    <TableCell className="text-right text-muted-foreground text-xs">
+                                       {log.timestamp ? format((log.timestamp as Timestamp).toDate(), 'PPpp') : 'N/A'}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -312,3 +312,5 @@ export default function LogsPage() {
         </div>
     )
 }
+
+    
