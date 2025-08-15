@@ -6,8 +6,14 @@ import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 
 const domainConfig = {
   "Mechanical": {
-    "leads": ["srikanth.devarasetty.dev@gmail.com"],
-    "members": ["shashank@gmail.com"]
+    "leads": ["mechdomainlead@gmail.com"],
+    "members": [
+        "mem2mechdomain@gmail.com",
+        "member1@example.com",
+        "mem3mechdomain@gmail.com",
+        "shashank@gmail.com",
+        "srikanth.devarasetty.dev@gmail.com"
+    ]
   },
   "Electrical": {
     "leads": [],
@@ -64,5 +70,3 @@ export async function seedDatabase() {
         throw new Error("Error seeding database.");
     }
 }
-
-    
