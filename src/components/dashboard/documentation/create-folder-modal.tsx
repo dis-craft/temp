@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, FolderPlus } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, ChevronsUpDown } from 'lucide-react';
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandSeparator } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandSeparator } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -118,6 +118,7 @@ export function CreateFolderModal({ isOpen, setIsOpen, isSubmitting, onSubmit, d
                                     </PopoverTrigger>
                                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                     <Command>
+                                        <CommandInput placeholder="Search roles..." />
                                         <CommandEmpty>No roles found.</CommandEmpty>
                                         <ScrollArea className="max-h-60">
                                             {Object.entries(groupedOptions).map(([groupName, options], index) => (

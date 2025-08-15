@@ -8,54 +8,49 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Loader2, Upload, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Shield, Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandSeparator } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { DocumentationItem } from '@/lib/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-
-const fileSchema = z.object({
-    name: z.string().min(1, "File name cannot be empty."),
-    file: z.instanceof(FileList).refine(files => files?.length === 1, "A file is required."),
+const permissionsSchema = z.object({
     viewableBy: z.array(z.string()).optional(),
 });
 
-type FileFormValues = z.infer<typeof fileSchema>;
+type PermissionsFormValues = z.infer<typeof permissionsSchema>;
 
-interface UploadFileModalProps {
+interface EditPermissionsModalProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
     isSubmitting: boolean;
-    onSubmit: (file: File, name: string, viewableBy: string[]) => Promise<void>;
+    onSubmit: (itemId: string, viewableBy: string[]) => Promise<void>;
+    item: DocumentationItem;
     domains: { id: string }[];
 }
 
-export function UploadFileModal({ isOpen, setIsOpen, isSubmitting, onSubmit, domains }: UploadFileModalProps) {
-    const form = useForm<FileFormValues>({
-        resolver: zodResolver(fileSchema),
-        defaultValues: { name: '', file: undefined, viewableBy: [] },
+export function EditPermissionsModal({ isOpen, setIsOpen, isSubmitting, onSubmit, item, domains }: EditPermissionsModalProps) {
+    const form = useForm<PermissionsFormValues>({
+        resolver: zodResolver(permissionsSchema),
+        defaultValues: {
+            viewableBy: item.viewableBy || [],
+        },
     });
-    
-    const fileRef = form.register("file");
 
-    const handleSubmit = async (data: FileFormValues) => {
-        if (data.file) {
-            await onSubmit(data.file[0], data.name, data.viewableBy || []);
-             if (!isSubmitting) {
-                form.reset();
-            }
+    React.useEffect(() => {
+        if (isOpen) {
+            form.reset({
+                viewableBy: item.viewableBy || [],
+            });
         }
+    }, [isOpen, item, form]);
+
+    const handleSubmit = async (data: PermissionsFormValues) => {
+        await onSubmit(item.id, data.viewableBy || []);
     };
     
-     React.useEffect(() => {
-        if(isOpen) {
-            form.reset();
-        }
-    }, [isOpen, form]);
-
     const roleOptions = [
         { value: 'super-admin', label: 'Super Admins', group: 'Special Roles' },
         { value: 'admin', label: 'Admins', group: 'Special Roles' },
@@ -78,47 +73,14 @@ export function UploadFileModal({ isOpen, setIsOpen, isSubmitting, onSubmit, dom
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle className="font-headline flex items-center gap-2"><Upload /> Upload a File</DialogTitle>
-                    <DialogDescription>Select a file, give it a name, and set permissions.</DialogDescription>
+                    <DialogTitle className="font-headline flex items-center gap-2"><Shield /> Edit Permissions</DialogTitle>
+                    <DialogDescription>
+                        Update who can view the {item.type} <span className="font-semibold text-foreground">"{item.name}"</span>.
+                    </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
-                         <FormField
-                            control={form.control}
-                            name="file"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>File</FormLabel>
-                                    <FormControl>
-                                        <Input 
-                                            type="file" 
-                                            {...fileRef}
-                                            onChange={(e) => {
-                                                field.onChange(e.target.files);
-                                                if (e.target.files && e.target.files.length > 0 && !form.getValues("name")) {
-                                                    form.setValue("name", e.target.files[0].name);
-                                                }
-                                            }}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
                         <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>File Name</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g., 'Final Report Q2'" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
                             control={form.control}
                             name="viewableBy"
                             render={({ field }) => (
@@ -183,11 +145,12 @@ export function UploadFileModal({ isOpen, setIsOpen, isSubmitting, onSubmit, dom
                                 </FormItem>
                             )}
                         />
+
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Upload
+                                Save Changes
                             </Button>
                         </DialogFooter>
                     </form>
