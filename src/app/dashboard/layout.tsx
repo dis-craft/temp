@@ -9,6 +9,7 @@ import {
   Users,
   Database,
   Hammer,
+  Lightbulb,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -153,6 +154,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <span>Dashboard</span>
                     </SidebarMenuButton>
                  </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <Link href="/dashboard/suggestions" className="w-full">
+                  <SidebarMenuButton tooltip="Suggestions" isActive={pathname === '/dashboard/suggestions'}>
+                    <Lightbulb />
+                    <span>Suggestions</span>
+                  </SidebarMenuButton>
+                </Link>
               </SidebarMenuItem>
               {canManagePermissions && (
                 <>

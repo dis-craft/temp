@@ -12,6 +12,7 @@ export type LogCategory =
     | 'Domain Management'
     | 'Site Status'
     | 'Submissions'
+    | 'Suggestions'
     | 'Error';
 
 export interface Log {

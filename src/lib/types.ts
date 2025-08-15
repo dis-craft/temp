@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string | null;
@@ -43,4 +44,29 @@ export interface SiteStatus {
     emergencyShutdown: boolean;
     maintenanceMode: boolean;
     maintenanceETA?: string;
+}
+
+export type SuggestionCategory = 'Bug Report' | 'Feature Request' | 'UI/UX Improvement' | 'General Feedback';
+export type SuggestionPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+export type SuggestionStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed';
+
+export interface SuggestionResponse {
+  id: string;
+  text: string;
+  author: User;
+  timestamp: string;
+}
+
+export interface Suggestion {
+  id: string;
+  submitter: User;
+  isAnonymous: boolean;
+  category: SuggestionCategory;
+  priority: SuggestionPriority;
+  title: string;
+  description: string;
+  status: SuggestionStatus;
+  timestamp: string;
+  domain: string | null;
+  responses: SuggestionResponse[];
 }
