@@ -280,16 +280,8 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = async (fileKey?: string) => {
     if (!fileKey) return;
-    const r2PublicUrl = `https://pub-e16353913e234fe6a351f78006b008e3.r2.dev`;
-    if (r2PublicUrl) {
-      window.open(`${r2PublicUrl}/${fileKey}`, '_blank');
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Download Failed',
-        description: 'R2 Public URL is not configured.',
-      });
-    }
+    const downloadUrl = `/api/download/${fileKey}`;
+    window.open(downloadUrl, '_blank');
   };
 
   return (

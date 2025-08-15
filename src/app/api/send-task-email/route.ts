@@ -23,13 +23,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No valid assignee emails found.' }, { status: 400 });
   }
 
-  const appUrl = 'https://vyomsetuclub.vercel.app';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetuclub.vercel.app';
   const taskUrl = `${appUrl}/dashboard`; 
   
   let attachmentLink = '';
   if (task.attachment) {
-    const r2PublicUrl = `https://pub-e16353913e234fe6a351f78006b008e3.r2.dev`;
-    const downloadUrl = `${r2PublicUrl}/${task.attachment}`;
+    const downloadUrl = `${appUrl}/api/download/${task.attachment}`;
     attachmentLink = `
         <p style="font-size: 16px; margin-bottom: 20px;">
           <strong>Attachment:</strong> <a href="${downloadUrl}" style="color: #007bff; text-decoration: none;" target="_blank" rel="noopener noreferrer">Download Attached File</a>
