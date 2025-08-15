@@ -166,7 +166,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile, setOpen } = useSidebar()
+    const { isMobile, state, open, setOpen, openMobile, setOpenMobile } = useSidebar()
     
     const handleMouseEnter = () => {
       if(state === 'collapsed'){
@@ -222,8 +222,8 @@ const Sidebar = React.forwardRef<
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseEnter={collapsible === 'icon' ? handleMouseEnter : undefined}
+        onMouseLeave={collapsible === 'icon' ? handleMouseLeave : undefined}
       >
         <div
           className={cn(

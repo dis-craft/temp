@@ -3,6 +3,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   Settings,
@@ -144,9 +145,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           variant="sidebar"
         >
           <SidebarHeader>
-            <div className="flex items-center gap-2 p-2">
-              <Logo className="size-6 text-primary" />
-              <span className="text-lg font-bold font-headline text-primary">vyomsetu-club</span>
+            <div className="flex items-center justify-center gap-2 p-2">
+                <Logo className="size-6 shrink-0 text-primary group-data-[collapsible=icon]:group-data-[state=expanded]:hidden" />
+                <Image src="https://placehold.co/32x32.png" alt="Vyomsetu Club Logo" width={32} height={32} className="hidden size-8 group-data-[collapsible=icon]:group-data-[state=collapsed]:block" data-ai-hint="logo" />
+                <span className="text-lg font-bold font-headline text-primary group-data-[collapsible=icon]:group-data-[state=collapsed]:hidden">vyomsetu-club</span>
             </div>
           </SidebarHeader>
           <SidebarContent>
