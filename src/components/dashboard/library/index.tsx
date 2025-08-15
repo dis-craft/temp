@@ -8,11 +8,10 @@ import { Button } from '@/components/ui/button';
 import type { DocumentationItem, User } from '@/lib/types';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 import TreeNav from './tree-nav';
 import ContentDisplay from './content-display';
-import { logActivity } from '@/lib/logger';
 import { CreateFolderModal } from './create-folder-modal';
 import { UploadFileModal } from './upload-file-modal';
 
@@ -20,6 +19,7 @@ export default function Library() {
     const [currentUser, setCurrentUser] = React.useState<User | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
     const [items, setItems] = React.useState<DocumentationItem[]>([]);
+    const [domains, setDomains] = React.useState<{id: string}[]>([]);
     const [isFolderModalOpen, setIsFolderModalOpen] = React.useState(false);
     const [isFileModalOpen, setIsFileModalOpen] = React.useState(false);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -38,17 +38,33 @@ export default function Library() {
             } else {
                 setCurrentUser(null);
             }
-            // Fetch items after user is resolved
-            fetchItems();
+        });
+        
+        const domainsUnsub = onSnapshot(collection(db, 'domains'), (snapshot) => {
+            setDomains(snapshot.docs.map(doc => ({ id: doc.id })));
         });
 
-        return () => unsubscribeAuth();
+        return () => {
+            unsubscribeAuth();
+            domainsUnsub();
+        };
     }, []);
+    
+     React.useEffect(() => {
+        if (currentUser) {
+            fetchItems();
+        } else {
+            // if user is not logged in after check, stop loading
+            setIsLoading(false);
+        }
+    }, [currentUser]);
 
     const fetchItems = async () => {
         setIsLoading(true);
         try {
-            const response = await fetch('/api/documentation');
+            const response = await fetch('/api/documentation', {
+                 headers: { 'x-user': JSON.stringify(currentUser) },
+            });
             if (!response.ok) throw new Error('Failed to fetch documentation items.');
             const data = await response.json();
             setItems(data);
@@ -61,13 +77,13 @@ export default function Library() {
     
     const canManage = currentUser?.role === 'super-admin' || (currentUser?.role === 'domain-lead' && currentUser?.domain === 'Documentation');
 
-    const handleCreateFolder = async (name: string) => {
+    const handleCreateFolder = async (name: string, viewableBy: string[]) => {
         setIsSubmitting(true);
         try {
              const response = await fetch('/api/documentation', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-user': JSON.stringify(currentUser) },
-                body: JSON.stringify({ type: 'folder', name, parentId: currentFolderId }),
+                body: JSON.stringify({ type: 'folder', name, parentId: currentFolderId, viewableBy }),
             });
             if (!response.ok) {
                  const res = await response.json();
@@ -83,7 +99,7 @@ export default function Library() {
         }
     };
     
-    const handleUploadFile = async (file: File, name: string) => {
+    const handleUploadFile = async (file: File, name: string, viewableBy: string[]) => {
         setIsSubmitting(true);
         // Step 1: Upload file to R2 via our /api/upload endpoint
         const formData = new FormData();
@@ -110,6 +126,7 @@ export default function Library() {
                     parentId: currentFolderId,
                     filePath: uploadResult.filePath,
                     mimeType: file.type,
+                    viewableBy
                 }),
             });
              if (!docResponse.ok) {
@@ -206,6 +223,7 @@ export default function Library() {
                 setIsOpen={setIsFolderModalOpen}
                 isSubmitting={isSubmitting}
                 onSubmit={handleCreateFolder}
+                domains={domains}
             />
 
             <UploadFileModal
@@ -213,6 +231,7 @@ export default function Library() {
                 setIsOpen={setIsFileModalOpen}
                 isSubmitting={isSubmitting}
                 onSubmit={handleUploadFile}
+                domains={domains}
             />
         </div>
     );

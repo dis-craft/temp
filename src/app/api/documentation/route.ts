@@ -2,11 +2,11 @@
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { logActivity } from '@/lib/logger';
 import { headers } from 'next/headers';
-import type { User, DocumentationFile, DocumentationFolder } from '@/lib/types';
+import type { User, DocumentationFile, DocumentationFolder, DocumentationItem } from '@/lib/types';
 import { s3Client } from '@/lib/r2';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 
@@ -23,6 +23,21 @@ async function getUserFromHeaders(): Promise<User | null> {
     return null;
 }
 
+function canUserView(item: DocumentationItem, user: User): boolean {
+    if (!item.viewableBy || item.viewableBy.length === 0) {
+        // for backward compatibility, if viewableBy is not set, allow all
+        return true;
+    }
+    if (user.role === 'super-admin' || user.role === 'admin') return true;
+
+    const userRoles = [
+        user.role, 
+        user.domain ? `${user.domain}-${user.role}` : null
+    ].filter(Boolean);
+
+    return item.viewableBy.some(role => userRoles.includes(role as string));
+}
+
 async function hasPermission(user: User | null): Promise<boolean> {
     if (!user) return false;
     return user.role === 'super-admin' || user.role === 'admin' || (user.role === 'domain-lead' && user.domain === 'Documentation');
@@ -37,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { type, name, parentId, filePath, mimeType } = body;
+        const { type, name, parentId, filePath, mimeType, viewableBy } = body;
 
         if (type === 'folder') {
             const newFolder: Omit<DocumentationFolder, 'id'> = {
@@ -46,6 +61,7 @@ export async function POST(req: NextRequest) {
                 type: 'folder',
                 createdAt: new Date().toISOString(),
                 createdBy: user!,
+                viewableBy: viewableBy || [],
             };
             const docRef = await addDoc(collection(db, 'documentation'), newFolder);
             await logActivity(`Created documentation folder: "${name}"`, 'Documentation', user);
@@ -60,6 +76,7 @@ export async function POST(req: NextRequest) {
                 mimeType,
                 createdAt: new Date().toISOString(),
                 createdBy: user!,
+                viewableBy: viewableBy || [],
             };
             const docRef = await addDoc(collection(db, 'documentation'), newFile);
             await logActivity(`Uploaded documentation file: "${name}"`, 'Documentation', user);
@@ -85,8 +102,12 @@ export async function GET(req: NextRequest) {
     try {
         const q = query(collection(db, 'documentation'));
         const querySnapshot = await getDocs(q);
-        const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        return NextResponse.json(items, { status: 200 });
+        const allItems = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as DocumentationItem }));
+
+        // Filter items based on user's role and permissions
+        const visibleItems = allItems.filter(item => canUserView(item, user));
+        
+        return NextResponse.json(visibleItems, { status: 200 });
     } catch (error: any) {
         console.error('Error fetching documentation:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -139,7 +160,7 @@ export async function DELETE(req: NextRequest) {
     try {
         if (type === 'file') {
             const itemRef = doc(db, 'documentation', id);
-            const itemDoc = await itemRef.get();
+            const itemDoc = await getDoc(itemRef);
             const itemData = itemDoc.data() as DocumentationFile | undefined;
             
             if (itemData?.filePath) {

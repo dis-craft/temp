@@ -80,6 +80,7 @@ export interface DocumentationItem {
     createdAt: string;
     createdBy: User;
     type: 'folder' | 'file';
+    viewableBy: string[]; // e.g., ['admin', 'Mechanical-lead', 'Software-member']
 }
 
 export interface DocumentationFolder extends DocumentationItem {
