@@ -9,13 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, Check, ChevronsUpDown } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandSeparator } from '@/components/ui/command';
-import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, Upload } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 
 const fileSchema = z.object({
     name: z.string().min(1, "File name cannot be empty."),
@@ -121,65 +118,49 @@ export function UploadFileModal({ isOpen, setIsOpen, isSubmitting, onSubmit, dom
                          <FormField
                             control={form.control}
                             name="viewableBy"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                <FormLabel>Who can see this?</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        className="w-full justify-between h-auto min-h-10"
-                                        >
-                                        <div className="flex gap-1 flex-wrap">
-                                            {field.value && field.value.length > 0 ? field.value.map(val => (
-                                                <Badge key={val} variant="secondary">{roleOptions.find(o => o.value === val)?.label || val}</Badge>
-                                            )) : "Select roles..."}
-                                        </div>
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Search roles..." />
-                                        <CommandEmpty>No roles found.</CommandEmpty>
-                                        <ScrollArea className="max-h-60">
-                                            {Object.entries(groupedOptions).map(([groupName, options], index) => (
-                                                <React.Fragment key={groupName}>
-                                                    {index > 0 && <CommandSeparator />}
-                                                    <CommandGroup heading={groupName}>
-                                                        {options.map((option) => (
-                                                            <CommandItem
-                                                            value={option.label}
-                                                            key={option.value}
-                                                            onSelect={() => {
-                                                                const currentValue = field.value || [];
-                                                                const isSelected = currentValue.includes(option.value);
-                                                                const newValue = isSelected
-                                                                ? currentValue.filter((v) => v !== option.value)
-                                                                : [...currentValue, option.value];
-                                                                field.onChange(newValue);
+                            render={() => (
+                                <FormItem>
+                                    <FormLabel>Who can see this?</FormLabel>
+                                    <ScrollArea className="h-40 w-full rounded-md border p-4">
+                                         {Object.entries(groupedOptions).map(([group, options], index) => (
+                                            <div key={group}>
+                                                {index > 0 && <Separator className="my-2" />}
+                                                <h4 className="font-medium text-sm mb-2">{group}</h4>
+                                                {options.map((option) => (
+                                                    <FormField
+                                                    key={option.value}
+                                                    control={form.control}
+                                                    name="viewableBy"
+                                                    render={({ field }) => (
+                                                        <FormItem
+                                                        key={option.value}
+                                                        className="flex flex-row items-start space-x-3 space-y-0 mb-2"
+                                                        >
+                                                        <FormControl>
+                                                            <Checkbox
+                                                            checked={field.value?.includes(option.value)}
+                                                            onCheckedChange={(checked) => {
+                                                                return checked
+                                                                ? field.onChange([...(field.value || []), option.value])
+                                                                : field.onChange(
+                                                                    (field.value || [])?.filter(
+                                                                    (value) => value !== option.value
+                                                                    )
+                                                                )
                                                             }}
-                                                            >
-                                                            <Check
-                                                                className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                field.value?.includes(option.value) ? "opacity-100" : "opacity-0"
-                                                                )}
                                                             />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal text-sm">
                                                             {option.label}
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </React.Fragment>
-                                            ))}
-                                        </ScrollArea>
-                                    </Command>
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
+                                                        </FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                    />
+                                                ))}
+                                            </div>
+                                         ))}
+                                    </ScrollArea>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
