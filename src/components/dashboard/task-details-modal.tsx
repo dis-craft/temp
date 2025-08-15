@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -279,14 +280,14 @@ export function TaskDetailsModal({ task, currentUser, isOpen, setIsOpen, allUser
 
   const handleDownload = async (fileKey?: string) => {
     if (!fileKey) return;
-    const workerUrl = process.env.NEXT_PUBLIC_R2_WORKER_URL;
-    if (workerUrl) {
-      window.open(`${workerUrl}/${fileKey}`, '_blank');
+    const r2PublicUrl = `https://pub-e16353913e234fe6a351f78006b008e3.r2.dev`;
+    if (r2PublicUrl) {
+      window.open(`${r2PublicUrl}/${fileKey}`, '_blank');
     } else {
       toast({
         variant: 'destructive',
         title: 'Download Failed',
-        description: 'Worker URL is not configured.',
+        description: 'R2 Public URL is not configured.',
       });
     }
   };
