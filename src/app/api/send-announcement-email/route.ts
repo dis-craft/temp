@@ -7,31 +7,36 @@ import type { User, Announcement, AnnouncementTarget } from '@/lib/types';
 
 
 async function getTargetUsers(targets: AnnouncementTarget[]): Promise<User[]> {
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+
     if (targets.includes('all')) {
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        return usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        return allUsers;
     }
 
-    const allTargetUsers: Record<string, User> = {};
+    const targetedUsers = new Map<string, User>();
 
-    for (const target of targets) {
-        const [type, value] = target.split('-');
-        let q;
-        if (type === 'role') {
-            q = query(collection(db, 'users'), where('role', '==', value));
-        } else if (type === 'domain') {
-            q = query(collection(db, 'users'), where('domain', '==', value));
-        }
-
-        if (q) {
-            const querySnapshot = await getDocs(q);
-            querySnapshot.forEach(doc => {
-                allTargetUsers[doc.id] = { id: doc.id, ...doc.data() } as User;
-            });
+    for (const user of allUsers) {
+        for (const target of targets) {
+            const [type, value] = target.split('-');
+            
+            let match = false;
+            if (type === 'role' && user.role === value) {
+                match = true;
+            } else if (type === 'domain' && user.domain === value) {
+                match = true;
+            }
+            
+            if (match) {
+                targetedUsers.set(user.id, user);
+                // A user can match multiple targets, but we only need to add them once.
+                // We can break here since this user is already included.
+                break; 
+            }
         }
     }
     
-    return Object.values(allTargetUsers);
+    return Array.from(targetedUsers.values());
 }
 
 export async function POST(req: NextRequest) {
