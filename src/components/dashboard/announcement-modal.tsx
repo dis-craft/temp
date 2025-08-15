@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
 import type { Announcement, User, AnnouncementTarget } from '@/lib/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -26,7 +26,16 @@ const announcementSchema = z.object({
     content: z.string().min(10, "Content must be at least 10 characters long."),
     targets: z.array(z.string()).min(1, "At least one target audience is required."),
     status: z.enum(['draft', 'published']),
+    publishType: z.enum(['now', 'later']),
     publishAt: z.date(),
+}).refine(data => {
+    if (data.publishType === 'later') {
+        return data.publishAt > new Date();
+    }
+    return true;
+}, {
+    message: "Scheduled publish date must be in the future.",
+    path: ["publishAt"],
 });
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
@@ -49,7 +58,8 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
             title: '',
             content: '',
             targets: [],
-            status: 'draft',
+            status: 'published',
+            publishType: 'now',
             publishAt: new Date(),
         },
     });
@@ -57,19 +67,23 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
     React.useEffect(() => {
         if (isOpen) {
             if (announcement) {
+                const publishDate = new Date(announcement.publishAt);
+                const isScheduled = publishDate > new Date();
                 form.reset({
                     title: announcement.title,
                     content: announcement.content,
                     targets: announcement.targets,
                     status: announcement.status === 'archived' ? 'draft' : announcement.status,
-                    publishAt: new Date(announcement.publishAt),
+                    publishType: isScheduled ? 'later' : 'now',
+                    publishAt: publishDate,
                 });
             } else {
                 form.reset({
                     title: '',
                     content: '',
                     targets: [],
-                    status: 'draft',
+                    status: 'published',
+                    publishType: 'now',
                     publishAt: new Date(),
                 });
             }
@@ -79,9 +93,11 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
     const handleSubmit = async (data: AnnouncementFormValues) => {
         setIsSubmitting(true);
         const finalData = {
-            ...data,
+            title: data.title,
+            content: data.content,
             targets: data.targets as AnnouncementTarget[],
-            publishAt: data.publishAt.toISOString(),
+            status: data.status,
+            publishAt: data.publishType === 'now' ? new Date().toISOString() : data.publishAt.toISOString(),
         };
         await onSubmit(finalData);
         setIsSubmitting(false);
@@ -113,6 +129,8 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
         }, {} as Record<string, typeof options>);
 
     }, [currentUser, domains]);
+
+    const publishType = form.watch('publishType');
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -206,8 +224,43 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                             )}
                         />
                         
-                         <div className="grid grid-cols-2 gap-4">
-                            <FormField
+                         <FormField
+                            control={form.control}
+                            name="publishType"
+                            render={({ field }) => (
+                                <FormItem className="space-y-3">
+                                <FormLabel>Publish Options</FormLabel>
+                                <FormControl>
+                                    <RadioGroup
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                    className="flex flex-col space-y-1"
+                                    >
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                        <RadioGroupItem value="now" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                        Publish Now
+                                        </FormLabel>
+                                    </FormItem>
+                                    <FormItem className="flex items-center space-x-3 space-y-0">
+                                        <FormControl>
+                                        <RadioGroupItem value="later" />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                        Schedule for Later
+                                        </FormLabel>
+                                    </FormItem>
+                                    </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+
+                        {publishType === 'later' && (
+                             <FormField
                                 control={form.control}
                                 name="publishAt"
                                 render={({ field }) => (
@@ -218,7 +271,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                                         <FormControl>
                                             <Button
                                             variant={"outline"}
-                                            className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
+                                            className={cn("w-[240px] pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
                                             >
                                             {field.value ? (format(field.value, "PPP")) : (<span>Pick a date</span>)}
                                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -238,24 +291,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                                     </FormItem>
                                 )}
                             />
-                             <FormField
-                                control={form.control}
-                                name="status"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Action</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="draft">Save as Draft</SelectItem>
-                                                <SelectItem value="published">Publish</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
+                        )}
 
 
                         <DialogFooter>
