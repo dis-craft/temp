@@ -4,7 +4,7 @@ export interface User {
   email: string | null;
   avatarUrl: string | null;
   role: 'super-admin' | 'admin' | 'domain-lead' | 'member';
-  domain?: 'Mechanical' | 'Electrical' | 'Software';
+  domain?: 'Mechanical' | 'Electrical' | 'Software' | null;
 }
 
 export interface Comment {

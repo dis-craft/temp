@@ -89,7 +89,7 @@ export function LoginForm() {
         email: user.email,
         avatarUrl: user.photoURL,
         role: role,
-        domain: domain,
+        domain: domain || null,
       };
       await setDoc(userRef, newUser);
       userData = newUser;
