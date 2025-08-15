@@ -26,7 +26,9 @@ const domainConfig = {
 };
 
 const specialRolesConfig = {
-    "super-admin@taskmaster.pro": "super-admin"
+    "super-admin@taskmaster.pro": "super-admin",
+    "vyomsetuclub@gmail.com": "super-admin"
+
 };
 
 
