@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { MoreHorizontal, Edit, Trash2, Globe, Users, Shield, Building } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Globe, Users, Shield, Building, Paperclip, Download } from 'lucide-react';
 import type { Announcement, User } from '@/lib/types';
 import { cn, formatUserName } from '@/lib/utils';
 
@@ -60,6 +60,12 @@ const getTargetInfo = (target: string) => {
 export default function AnnouncementCard({ announcement, currentUser, allUsers, onEdit, onDelete }: AnnouncementCardProps) {
 
     const canManage = currentUser.role === 'super-admin' || currentUser.role === 'admin' || announcement.author.id === currentUser.id;
+
+    const handleDownload = async (fileKey?: string) => {
+        if (!fileKey) return;
+        const downloadUrl = `/api/download/${fileKey}`;
+        window.open(downloadUrl, '_blank');
+    };
 
     return (
         <Card className="flex flex-col h-full shadow-sm">
@@ -113,8 +119,14 @@ export default function AnnouncementCard({ announcement, currentUser, allUsers, 
                     </span>
                 </CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow">
+            <CardContent className="flex-grow space-y-4">
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{announcement.content}</p>
+                {announcement.attachment && (
+                    <Button variant="outline" size="sm" onClick={() => handleDownload(announcement.attachment)}>
+                        <Download className="mr-2 h-4 w-4"/>
+                        Download Attachment
+                    </Button>
+                )}
             </CardContent>
             <CardFooter className="flex flex-col items-start gap-2">
                 <Separator className="my-2" />

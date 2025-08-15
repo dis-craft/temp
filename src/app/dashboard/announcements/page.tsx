@@ -78,15 +78,52 @@ export default function AnnouncementsPage() {
         return () => unsubscribeAnnouncements();
     }, [currentUser, toast]);
 
+    const uploadFile = async (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
 
-    const handleUpsertAnnouncement = async (data: Omit<Announcement, 'id' | 'author' | 'createdAt' | 'sent'>) => {
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'X-Custom-Auth-Key': process.env.NEXT_PUBLIC_JWT_SECRET || '' },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'File upload failed');
+            }
+
+            const result = await response.json();
+            return result.filePath;
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Upload Failed',
+                description: (error as Error).message,
+            });
+            return null;
+        }
+    };
+
+
+    const handleUpsertAnnouncement = async (data: Omit<Announcement, 'id' | 'author' | 'createdAt' | 'sent' | 'publishAt'>, attachmentFile?: File) => {
         if (!currentUser) return;
         
         try {
+            let attachmentPath = editingAnnouncement?.attachment || '';
+            if (attachmentFile) {
+                const uploadedPath = await uploadFile(attachmentFile);
+                if (!uploadedPath) return; // Stop if upload fails
+                attachmentPath = uploadedPath;
+            }
+
+            const publishAt = new Date().toISOString();
+
             if (editingAnnouncement) {
                 // Update
                 const annRef = doc(db, 'announcements', editingAnnouncement.id);
-                await updateDoc(annRef, { ...data, sent: false }); // Reset sent status on update
+                await updateDoc(annRef, { ...data, attachment: attachmentPath, sent: false }); // Reset sent status on update
                 toast({ title: 'Announcement Updated', description: 'The announcement has been successfully updated.' });
                 await logActivity(`Updated announcement: "${data.title}"`, 'Announcements', currentUser);
             } else {
@@ -95,20 +132,21 @@ export default function AnnouncementsPage() {
                     ...data,
                     author: currentUser,
                     createdAt: new Date().toISOString(),
+                    publishAt,
+                    attachment: attachmentPath,
                     sent: false,
                 };
                 await addDoc(collection(db, 'announcements'), announcementWithMeta);
-                toast({ title: 'Announcement Created', description: 'The announcement has been saved as a draft.' });
+                toast({ title: 'Announcement Created', description: 'The announcement has been published.' });
                 await logActivity(`Created announcement: "${data.title}"`, 'Announcements', currentUser);
             }
 
             // This is a simplified notification trigger. A real-world scenario would use a scheduled function.
-            const publishDate = new Date(data.publishAt);
-            if (publishDate <= new Date() && data.status === 'published') {
-                await fetch('/api/send-announcement-email', {
+            if (data.status === 'published') {
+                 await fetch('/api/send-announcement-email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ announcement: { ...data, author: currentUser } }),
+                    body: JSON.stringify({ announcement: { ...data, publishAt, author: currentUser, attachment: attachmentPath } }),
                 });
             }
 

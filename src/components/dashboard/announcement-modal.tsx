@@ -10,15 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { Announcement, User, AnnouncementTarget } from '@/lib/types';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { Calendar } from '../ui/calendar';
-import { format } from 'date-fns';
+import { Checkbox } from '../ui/checkbox';
+import { ScrollArea } from '../ui/scroll-area';
+import { Separator } from '../ui/separator';
 
 
 const announcementSchema = z.object({
@@ -26,16 +22,7 @@ const announcementSchema = z.object({
     content: z.string().min(10, "Content must be at least 10 characters long."),
     targets: z.array(z.string()).min(1, "At least one target audience is required."),
     status: z.enum(['draft', 'published']),
-    publishType: z.enum(['now', 'later']),
-    publishAt: z.date(),
-}).refine(data => {
-    if (data.publishType === 'later') {
-        return data.publishAt > new Date();
-    }
-    return true;
-}, {
-    message: "Scheduled publish date must be in the future.",
-    path: ["publishAt"],
+    attachment: z.any().optional(),
 });
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>;
@@ -43,7 +30,7 @@ type AnnouncementFormValues = z.infer<typeof announcementSchema>;
 interface AnnouncementModalProps {
     isOpen: boolean;
     setIsOpen: (isOpen: boolean) => void;
-    onSubmit: (data: Omit<Announcement, 'id' | 'author' | 'createdAt' | 'sent'>) => Promise<void>;
+    onSubmit: (data: Omit<Announcement, 'id' | 'author' | 'createdAt' | 'sent' | 'publishAt'>, attachmentFile?: File) => Promise<void>;
     currentUser: User;
     announcement: Announcement | null;
     domains: { id: string }[];
@@ -59,23 +46,19 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
             content: '',
             targets: [],
             status: 'published',
-            publishType: 'now',
-            publishAt: new Date(),
+            attachment: undefined,
         },
     });
 
     React.useEffect(() => {
         if (isOpen) {
             if (announcement) {
-                const publishDate = new Date(announcement.publishAt);
-                const isScheduled = publishDate > new Date();
                 form.reset({
                     title: announcement.title,
                     content: announcement.content,
                     targets: announcement.targets,
                     status: announcement.status === 'archived' ? 'draft' : announcement.status,
-                    publishType: isScheduled ? 'later' : 'now',
-                    publishAt: publishDate,
+                    attachment: undefined, // Cannot pre-fill file input
                 });
             } else {
                 form.reset({
@@ -83,8 +66,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                     content: '',
                     targets: [],
                     status: 'published',
-                    publishType: 'now',
-                    publishAt: new Date(),
+                    attachment: undefined,
                 });
             }
         }
@@ -97,9 +79,9 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
             content: data.content,
             targets: data.targets as AnnouncementTarget[],
             status: data.status,
-            publishAt: data.publishType === 'now' ? new Date().toISOString() : data.publishAt.toISOString(),
         };
-        await onSubmit(finalData);
+        const attachmentFile = data.attachment?.[0];
+        await onSubmit(finalData, attachmentFile);
         setIsSubmitting(false);
     };
 
@@ -126,11 +108,9 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
             }
             acc[option.group].push(option);
             return acc;
-        }, {} as Record<string, typeof options>);
+        }, {} as Record<string, { value: AnnouncementTarget, label: string, group: string }[]>);
 
     }, [currentUser, domains]);
-
-    const publishType = form.watch('publishType');
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -138,7 +118,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                 <DialogHeader>
                     <DialogTitle className="font-headline">{announcement ? 'Edit' : 'Create'} Announcement</DialogTitle>
                     <DialogDescription>
-                        Craft your message and choose who should see it. You can save as a draft or publish immediately.
+                        Craft your message and choose who should see it.
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
@@ -163,7 +143,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                                 <FormItem>
                                     <FormLabel>Content</FormLabel>
                                     <FormControl>
-                                        <Textarea placeholder="Write your announcement here. Markdown is supported." className="min-h-[150px]" {...field} />
+                                        <Textarea placeholder="Write your announcement here..." className="min-h-[150px]" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -173,125 +153,66 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                         <FormField
                             control={form.control}
                             name="targets"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                <FormLabel>Audience</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            className={cn("w-full justify-between h-auto min-h-10", !field.value && "text-muted-foreground")}
-                                        >
-                                            <div className="flex gap-1 flex-wrap">
-                                                {field.value && field.value.length > 0 ? field.value.map(val => (
-                                                    <Badge key={val} variant="secondary">{Object.values(targetOptions).flat().find(o => o.value === val)?.label || val}</Badge>
-                                                )) : "Select audience..."}
-                                            </div>
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Search audience..." />
-                                        <CommandEmpty>No audience found.</CommandEmpty>
-                                            {Object.entries(targetOptions).map(([group, options]) => (
-                                                 <CommandGroup key={group} heading={group}>
-                                                    {options.map((option) => (
-                                                        <CommandItem
-                                                            value={option.label}
-                                                            key={option.value}
-                                                            onSelect={() => {
-                                                                const newValue = field.value?.includes(option.value)
-                                                                    ? field.value.filter(v => v !== option.value)
-                                                                    : [...(field.value || []), option.value];
-                                                                field.onChange(newValue);
-                                                            }}
+                            render={() => (
+                                <FormItem>
+                                    <FormLabel>Audience</FormLabel>
+                                    <ScrollArea className="h-40 w-full rounded-md border p-4">
+                                         {Object.entries(targetOptions).map(([group, options], index) => (
+                                            <div key={group}>
+                                                {index > 0 && <Separator className="my-2" />}
+                                                <h4 className="font-medium text-sm mb-2">{group}</h4>
+                                                {options.map((option) => (
+                                                    <FormField
+                                                    key={option.value}
+                                                    control={form.control}
+                                                    name="targets"
+                                                    render={({ field }) => (
+                                                        <FormItem
+                                                        key={option.value}
+                                                        className="flex flex-row items-start space-x-3 space-y-0 mb-2"
                                                         >
-                                                            <Check className={cn("mr-2 h-4 w-4", field.value?.includes(option.value) ? "opacity-100" : "opacity-0")}/>
+                                                        <FormControl>
+                                                            <Checkbox
+                                                            checked={field.value?.includes(option.value)}
+                                                            onCheckedChange={(checked) => {
+                                                                return checked
+                                                                ? field.onChange([...field.value, option.value])
+                                                                : field.onChange(
+                                                                    field.value?.filter(
+                                                                    (value) => value !== option.value
+                                                                    )
+                                                                )
+                                                            }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormLabel className="font-normal text-sm">
                                                             {option.label}
-                                                        </CommandItem>
-                                                    ))}
-                                                 </CommandGroup>
-                                            ))}
-                                    </Command>
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
+                                                        </FormLabel>
+                                                        </FormItem>
+                                                    )}
+                                                    />
+                                                ))}
+                                            </div>
+                                         ))}
+                                    </ScrollArea>
+                                    <FormMessage />
                                 </FormItem>
                             )}
                         />
                         
                          <FormField
-                            control={form.control}
-                            name="publishType"
-                            render={({ field }) => (
-                                <FormItem className="space-y-3">
-                                <FormLabel>Publish Options</FormLabel>
-                                <FormControl>
-                                    <RadioGroup
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                    className="flex flex-col space-y-1"
-                                    >
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="now" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">
-                                        Publish Now
-                                        </FormLabel>
-                                    </FormItem>
-                                    <FormItem className="flex items-center space-x-3 space-y-0">
-                                        <FormControl>
-                                        <RadioGroupItem value="later" />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">
-                                        Schedule for Later
-                                        </FormLabel>
-                                    </FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-
-                        {publishType === 'later' && (
-                             <FormField
-                                control={form.control}
-                                name="publishAt"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                    <FormLabel>Publish Date</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn("w-[240px] pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
-                                            >
-                                            {field.value ? (format(field.value, "PPP")) : (<span>Pick a date</span>)}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
+                          control={form.control}
+                          name="attachment"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Attach File (Optional)</FormLabel>
+                              <FormControl>
+                                <Input type="file" {...form.register('attachment')} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
 
                         <DialogFooter>

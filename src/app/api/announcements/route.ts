@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
             ...body,
             author: user,
             createdAt: new Date().toISOString(),
+            publishAt: new Date().toISOString(), // Publish immediately
         };
 
         const docRef = await addDoc(collection(db, 'announcements'), newAnnouncement);

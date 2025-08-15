@@ -65,6 +65,16 @@ export async function POST(req: NextRequest) {
         
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetuclub.vercel.app';
 
+        let attachmentLink = '';
+        if (announcement.attachment) {
+            const downloadUrl = `${appUrl}/api/download/${announcement.attachment}`;
+            attachmentLink = `
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                <strong>Attachment:</strong> <a href="${downloadUrl}" style="color: #007bff; text-decoration: none;" target="_blank" rel="noopener noreferrer">Download Attached File</a>
+                </p>
+            `;
+        }
+
         const mailOptions = {
             from: `"vyomsetu-club" <${process.env.GMAIL_USER}>`,
             to: emailList.join(','),
@@ -77,6 +87,7 @@ export async function POST(req: NextRequest) {
                         <div style="font-size: 16px; margin: 20px 0;">
                             ${announcement.content.replace(/\n/g, '<br/>')}
                         </div>
+                        ${attachmentLink}
                         <p style="font-size: 16px; text-align: center;">
                             <a href="${appUrl}/dashboard/announcements" style="background-color: #2962FF; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">View on Platform</a>
                         </p>

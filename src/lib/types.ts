@@ -105,4 +105,5 @@ export interface Announcement {
     targets: AnnouncementTarget[];
     status: 'draft' | 'published' | 'archived';
     sent: boolean;
+    attachment?: string; // path to the file in R2
 }
