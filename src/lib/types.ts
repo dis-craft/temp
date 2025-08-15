@@ -92,3 +92,17 @@ export interface DocumentationFile extends DocumentationItem {
     filePath: string; // Key for R2
     mimeType: string;
 }
+
+export type AnnouncementTarget = 'all' | `role-${User['role']}` | `domain-${NonNullable<User['domain']>}`;
+
+export interface Announcement {
+    id: string;
+    title: string;
+    content: string;
+    author: User;
+    createdAt: string; // ISO Date String
+    publishAt: string; // ISO Date String
+    targets: AnnouncementTarget[];
+    status: 'draft' | 'published' | 'archived';
+    sent: boolean;
+}
