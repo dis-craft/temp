@@ -166,10 +166,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <Link href="/dashboard/library" className="w-full">
-                  <SidebarMenuButton tooltip="Library" isActive={pathname.startsWith('/dashboard/library')}>
+                <Link href="/dashboard/documentation" className="w-full">
+                  <SidebarMenuButton tooltip="Documentation" isActive={pathname.startsWith('/dashboard/documentation')}>
                     <BookOpen />
-                    <span>Library</span>
+                    <span>Documentation</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

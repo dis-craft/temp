@@ -14,7 +14,7 @@ export type LogCategory =
     | 'Site Status'
     | 'Submissions'
     | 'Suggestions'
-    | 'Documentation'
+    | 'Documentation Hub'
     | 'Error';
 
 export interface Log {
