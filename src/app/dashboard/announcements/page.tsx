@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -123,9 +123,23 @@ export default function AnnouncementsPage() {
             if (editingAnnouncement) {
                 // Update
                 const annRef = doc(db, 'announcements', editingAnnouncement.id);
-                await updateDoc(annRef, { ...data, attachment: attachmentPath, sent: false }); // Reset sent status on update
+                const updatedData = { ...data, attachment: attachmentPath, sent: false };
+                await updateDoc(annRef, updatedData); // Reset sent status on update
+                
                 toast({ title: 'Announcement Updated', description: 'The announcement has been successfully updated.' });
                 await logActivity(`Updated announcement: "${data.title}"`, 'Announcements', currentUser);
+                
+                if (data.status === 'published') {
+                    const annDoc = await getDoc(annRef);
+                    if (annDoc.exists()) {
+                         await fetch('/api/send-announcement-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ announcement: {id: annDoc.id, ...annDoc.data()}}),
+                        });
+                    }
+                }
+
             } else {
                 // Create
                 const announcementWithMeta: Omit<Announcement, 'id'> = {
@@ -136,19 +150,19 @@ export default function AnnouncementsPage() {
                     attachment: attachmentPath,
                     sent: false,
                 };
-                await addDoc(collection(db, 'announcements'), announcementWithMeta);
+                const docRef = await addDoc(collection(db, 'announcements'), announcementWithMeta);
                 toast({ title: 'Announcement Created', description: 'The announcement has been published.' });
                 await logActivity(`Created announcement: "${data.title}"`, 'Announcements', currentUser);
+                 // This is a simplified notification trigger. A real-world scenario would use a scheduled function.
+                if (data.status === 'published') {
+                    await fetch('/api/send-announcement-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ announcement: { ...announcementWithMeta, id: docRef.id } }),
+                    });
+                }
             }
 
-            // This is a simplified notification trigger. A real-world scenario would use a scheduled function.
-            if (data.status === 'published') {
-                 await fetch('/api/send-announcement-email', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ announcement: { ...data, publishAt, author: currentUser, attachment: attachmentPath } }),
-                });
-            }
 
             setIsModalOpen(false);
             setEditingAnnouncement(null);

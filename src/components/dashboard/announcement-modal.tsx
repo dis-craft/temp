@@ -114,7 +114,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[600px] grid-rows-[auto,1fr,auto] max-h-[90vh]">
                 <DialogHeader>
                     <DialogTitle className="font-headline">{announcement ? 'Edit' : 'Create'} Announcement</DialogTitle>
                     <DialogDescription>
@@ -122,7 +122,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 py-4">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 overflow-y-auto py-4 pr-2">
                         <FormField
                             control={form.control}
                             name="title"
@@ -214,8 +214,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
                           )}
                         />
 
-
-                        <DialogFooter>
+                        <DialogFooter className="sticky bottom-0 bg-background pt-4">
                             <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
