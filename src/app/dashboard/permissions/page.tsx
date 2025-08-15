@@ -89,7 +89,7 @@ export default function ManagePermissionsPage() {
 
       toast({
         title: 'Success!',
-        description: result.message,
+        description: "Permissions updated successfully.",
       });
 
     } catch (error) {

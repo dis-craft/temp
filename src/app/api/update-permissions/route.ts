@@ -27,6 +27,11 @@ export async function POST(req: NextRequest) {
             if (!email) return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
             
             const specialRolesRef = doc(db, 'config', 'specialRoles');
+            const docSnap = await getDoc(specialRolesRef);
+
+            if (!docSnap.exists()) {
+                await setDoc(specialRolesRef, {});
+            }
 
             if (action === 'add-special-role') {
                 if (!role) return NextResponse.json({ error: 'Role is required.' }, { status: 400 });
@@ -39,12 +44,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid action.' }, { status: 400 });
         }
         
-        return NextResponse.json({ message: 'Permissions updated successfully. Reloading to apply changes.' }, { status: 200 });
+        return NextResponse.json({ message: 'Permissions updated successfully.' }, { status: 200 });
 
     } catch (error: any) {
         console.error('Error updating permissions config:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        const errorMessage = error.message || 'An unexpected error occurred.';
+        return NextResponse.json({ error: `Internal Server Error: ${errorMessage}` }, { status: 500 });
     }
 }
-
-    
