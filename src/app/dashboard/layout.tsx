@@ -13,6 +13,7 @@ import {
   Lightbulb,
   BookOpen,
   Megaphone,
+  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -163,6 +164,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <SidebarMenuButton tooltip="Announcements" isActive={pathname === '/dashboard/announcements'}>
                     <Megaphone />
                     <span>Announcements</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                <Link href="/dashboard/leaderboard" className="w-full">
+                  <SidebarMenuButton tooltip="Leaderboard" isActive={pathname === '/dashboard/leaderboard'}>
+                    <Trophy />
+                    <span>Leaderboard</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

@@ -107,3 +107,8 @@ export interface Announcement {
     sent: boolean;
     attachment?: string; // path to the file in R2
 }
+
+export interface LeaderboardUser extends User {
+    averageRating: number;
+    tasksRated: number;
+}
