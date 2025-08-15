@@ -1,8 +1,9 @@
+
 'use client';
 
 import * as React from 'react';
 import { format, isPast } from 'date-fns';
-import { Calendar, Users, Paperclip } from 'lucide-react';
+import { Calendar, Users, Paperclip, UserCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,13 +34,15 @@ export default function TaskCard({ task, currentUser, allUsers, onUpdateTask, on
         return 'secondary';
       case 'Pending':
         return 'outline';
+      case 'Unassigned':
+        return 'destructive';
       default:
         return 'outline';
     }
   };
   
   const assignees = task.assignees || [];
-  const submissionProgress = assignees.length > 0 ? (task.submissions.length / assignees.length) * 100 : 0;
+  const submissionProgress = task.status === 'Unassigned' ? 0 : (assignees.length > 0 ? (task.submissions.length / assignees.length) * 100 : 0);
 
   return (
     <>
@@ -67,6 +70,12 @@ export default function TaskCard({ task, currentUser, allUsers, onUpdateTask, on
               <span>Attachment</span>
             </div>
           )}
+          {task.status === 'Unassigned' && task.assignedToLead && (
+             <div className="flex items-center text-sm text-muted-foreground gap-2 mt-2">
+              <UserCheck className="h-4 w-4" />
+              <span>Assigned to {formatUserName(task.assignedToLead, allUsers)}</span>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col items-start gap-4">
           <div>
@@ -92,6 +101,12 @@ export default function TaskCard({ task, currentUser, allUsers, onUpdateTask, on
                   <AvatarFallback>+{assignees.length - 4}</AvatarFallback>
                 </Avatar>
               )}
+               {assignees.length === 0 && task.status !== 'Unassigned' && (
+                  <p className="text-xs text-muted-foreground">No members assigned.</p>
+               )}
+                {task.status === 'Unassigned' && (
+                  <p className="text-xs text-muted-foreground">Awaiting assignment by Lead.</p>
+                )}
             </div>
           </div>
           <div>

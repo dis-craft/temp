@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Users,
   Database,
+  Hammer,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -26,7 +27,7 @@ import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth
 import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import type { User } from '@/lib/types';
+import type { User, SiteStatus } from '@/lib/types';
 import { collection, doc, onSnapshot, query } from 'firebase/firestore';
 import {
   DropdownMenu,
@@ -39,64 +40,89 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatUserName } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [allUsers, setAllUsers] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [siteStatus, setSiteStatus] = React.useState<SiteStatus | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
   React.useEffect(() => {
     const auth = getAuth(app);
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
         const unsubUser = onSnapshot(userRef, (doc) => {
           if (doc.exists()) {
             setUser({ id: doc.id, ...doc.data() } as User);
           }
-          setLoading(false);
+          // setLoading should be managed carefully with siteStatus
         });
 
-        const usersQuery = query(collection(db, 'users'));
-        const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-            const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
-            setAllUsers(usersData);
-        });
-
-        return () => {
-          unsubUser();
-          unsubUsers();
-        };
+        return () => unsubUser();
       } else {
         router.push('/login');
         setLoading(false);
       }
     });
+    
+    const siteStatusRef = doc(db, 'config', 'siteStatus');
+    const unsubscribeSiteStatus = onSnapshot(siteStatusRef, (doc) => {
+        if(doc.exists()) {
+            setSiteStatus(doc.data() as SiteStatus);
+        } else {
+            setSiteStatus({ emergencyShutdown: false, maintenanceMode: false });
+        }
+        setLoading(false);
+    });
 
-    return () => unsubscribe();
+    const usersQuery = query(collection(db, 'users'));
+    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
+        const usersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+        setAllUsers(usersData);
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeSiteStatus();
+      unsubscribeUsers();
+    };
   }, [router]);
   
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
-
-  if (!user) {
-    return (
-        <div className="flex h-screen w-screen items-center justify-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        </div>
-    );
-  }
   
-  const canManagePermissions = user.role === 'super-admin' || user.role === 'admin';
+  const isSuperAdmin = user.role === 'super-admin';
+  const isAdmin = user.role === 'admin';
+  const canManagePermissions = isSuperAdmin || isAdmin;
   const formattedUserName = formatUserName(user, allUsers);
+
+  const isLockedOut = (siteStatus?.emergencyShutdown || siteStatus?.maintenanceMode) && !isSuperAdmin && !isAdmin;
+
+  if (isLockedOut) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center p-4">
+        <Alert variant="destructive" className="max-w-md">
+            <Hammer className="h-4 w-4" />
+            <AlertTitle>{siteStatus?.emergencyShutdown ? 'Emergency Shutdown' : 'Under Maintenance'}</AlertTitle>
+            <AlertDescription>
+            {siteStatus?.maintenanceMode && siteStatus.maintenanceETA
+                ? `The site is currently under maintenance. We expect to be back online around ${siteStatus.maintenanceETA}.`
+                : "The site is temporarily unavailable. Please check back later."}
+            </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <SidebarProvider>
@@ -129,6 +155,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <SidebarMenuButton tooltip="Manage Permissions" isActive={pathname === '/dashboard/permissions'}>
                           <ShieldCheck />
                           <span>Manage Permissions</span>
+                        </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                </>
+              )}
+               {isSuperAdmin && (
+                <>
+                  <SidebarMenuItem>
+                    <Link href="/dashboard/maintenance" className='w-full'>
+                        <SidebarMenuButton tooltip="Maintenance" isActive={pathname === '/dashboard/maintenance'}>
+                          <Hammer />
+                          <span>Maintenance</span>
                         </SidebarMenuButton>
                     </Link>
                   </SidebarMenuItem>

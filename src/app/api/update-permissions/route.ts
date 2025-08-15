@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, deleteField } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, deleteField, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export async function POST(req: NextRequest) {
@@ -11,7 +11,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Action is required.' }, { status: 400 });
         }
         
-        if (action === 'add-member' || action === 'remove-member' || action === 'add-lead' || action === 'remove-lead') {
+        if (action === 'add-domain') {
+            if (!domain) return NextResponse.json({ error: 'Domain name is required.' }, { status: 400 });
+            const domainRef = doc(db, 'domains', domain);
+            const domainSnap = await getDoc(domainRef);
+            if (domainSnap.exists()) {
+                return NextResponse.json({ error: 'Domain already exists.' }, { status: 409 });
+            }
+            await setDoc(domainRef, { name: domain, leads: [], members: [] });
+        } else if (action === 'add-member' || action === 'remove-member' || action === 'add-lead' || action === 'remove-lead') {
              if (!email || !domain) return NextResponse.json({ error: 'Email and domain are required.' }, { status: 400 });
              const domainRef = doc(db, 'domains', domain);
              if (action === 'add-member') {

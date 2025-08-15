@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, X, Eye } from 'lucide-react';
+import { Loader2, PlusCircle, User, Users, Shield, Save, Trash2, X, Eye, KeyRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, sendPasswordReset } from '@/lib/firebase';
 import type { User as UserType } from '@/lib/types';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
@@ -50,6 +50,10 @@ export default function ManagePermissionsPage() {
   
   const [addingRole, setAddingRole] = React.useState<'super-admin' | 'admin' | null>(null);
   const [newSpecialRoleEmail, setNewSpecialRoleEmail] = React.useState('');
+  
+  const [addingDomain, setAddingDomain] = React.useState(false);
+  const [newDomainName, setNewDomainName] = React.useState('');
+
 
   const { toast } = useToast();
   const router = useRouter();
@@ -59,14 +63,14 @@ export default function ManagePermissionsPage() {
       if (user) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if(userDoc.exists()) {
-          setCurrentUser({ id: user.uid, ...userDoc.data() } as UserType);
+          const userData = { id: user.uid, ...userDoc.data() } as UserType;
+          setCurrentUser(userData);
         }
       }
-      // Note: We don't set loading to false here until other listeners are also done.
     });
 
     const unsubDomains = onSnapshot(collection(db, 'domains'), (snapshot) => {
-      const domainsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as DomainConfig));
+      const domainsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as DomainConfig)).sort((a,b) => a.id.localeCompare(b.id));
       setDomainConfig(domainsData);
       setIsLoading(false);
     });
@@ -117,8 +121,18 @@ export default function ManagePermissionsPage() {
       setAddingMember(null);
       setAddingRole(null);
       setNewSpecialRoleEmail('');
+      setAddingDomain(false);
+      setNewDomainName('');
     }
   };
+  
+  const handleAddDomain = () => {
+    if (!newDomainName || !newDomainName.trim()) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Domain name cannot be empty.' });
+      return;
+    }
+    handleApiCall({ action: 'add-domain', domain: newDomainName }, 'add-domain');
+  }
 
   const handleAddMember = (domainName: string) => {
     const email = newMemberEmail[domainName];
@@ -159,6 +173,22 @@ export default function ManagePermissionsPage() {
   const handleRemoveSpecialRole = (email: string) => {
      handleApiCall({ action: 'remove-special-role', email }, 'special-roles');
   }
+
+  const handlePasswordReset = async (email: string) => {
+    try {
+      await sendPasswordReset(email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `A password reset link has been sent to ${email}.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Send Reset Email',
+        description: (error as Error).message,
+      });
+    }
+  };
   
   if (isLoading || !currentUser) {
     return (
@@ -169,6 +199,7 @@ export default function ManagePermissionsPage() {
   }
   
   const isSuperAdmin = currentUser.role === 'super-admin';
+  const isAdmin = currentUser.role === 'admin';
 
   return (
     <div className="w-full h-full flex flex-col space-y-6">
@@ -177,6 +208,28 @@ export default function ManagePermissionsPage() {
           <h1 className="text-3xl font-bold font-headline">Manage Permissions</h1>
           <p className="text-muted-foreground">View special roles and manage domain members and leads.</p>
         </div>
+        {isSuperAdmin && (
+            <div>
+            {!addingDomain ? (
+                <Button onClick={() => setAddingDomain(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Create Domain
+                </Button>
+            ) : (
+                <div className="flex gap-2">
+                    <Input 
+                        value={newDomainName}
+                        placeholder="New Domain Name"
+                        onChange={(e) => setNewDomainName(e.target.value)}
+                        disabled={isSubmitting['add-domain']}
+                    />
+                    <Button size="icon" onClick={handleAddDomain} disabled={isSubmitting['add-domain']}>
+                        {isSubmitting['add-domain'] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save/>}
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => setAddingDomain(false)}><X/></Button>
+                </div>
+            )}
+            </div>
+        )}
       </header>
       
       <Card>
@@ -250,7 +303,8 @@ export default function ManagePermissionsPage() {
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').map(([email]) => (
                         <Badge key={email} variant="secondary" className="flex items-center gap-2">
                             {email}
-                            <AlertDialog>
+                           {isSuperAdmin && (
+                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <button disabled={isSubmitting['special-roles']}>
                                         <Trash2 className="h-3 w-3 hover:text-black/80" />
@@ -269,6 +323,7 @@ export default function ManagePermissionsPage() {
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
+                           )}
                         </Badge>
                     ))}
                     {Object.entries(specialRolesConfig).filter(([,role]) => role === 'admin').length === 0 && <p className="text-xs text-muted-foreground">No admins assigned.</p>}
@@ -316,25 +371,46 @@ export default function ManagePermissionsPage() {
                     {config.leads.map(lead => (
                         <div key={lead} className="flex items-center justify-between bg-secondary/50 p-2 rounded-md">
                             <span className="text-sm">{lead}</span>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" disabled={isSubmitting[config.id]}>
-                                        <Trash2 className="text-destructive h-4 w-4"/>
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will remove <span className='font-bold'>{lead}</span> as a lead from the {config.id} domain.
-                                    </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleRemoveLead(config.id, lead)}>Confirm</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            <div className="flex items-center gap-1">
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isSubmitting[config.id] || !lead}>
+                                            <KeyRound className="text-muted-foreground h-4 w-4"/>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Send Password Reset?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will send a password reset link to <span className='font-bold'>{lead}</span>. They will be able to reset their password.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handlePasswordReset(lead)}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isSubmitting[config.id]}>
+                                            <Trash2 className="text-destructive h-4 w-4"/>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will remove <span className='font-bold'>{lead}</span> as a lead from the {config.id} domain.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleRemoveLead(config.id, lead)}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                         </div>
                     ))}
                     {config.leads.length === 0 && <p className="text-sm text-muted-foreground">No leads assigned.</p>}
@@ -368,25 +444,46 @@ export default function ManagePermissionsPage() {
                     config.members.map((member) => (
                       <div key={member} className="flex items-center justify-between bg-secondary/50 p-2 rounded-md">
                         <span className="text-sm">{member}</span>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" disabled={isSubmitting[config.id]}>
-                                    <Trash2 className="text-destructive h-4 w-4"/>
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action will remove <span className='font-bold'>{member}</span> from the {config.id} domain.
-                                </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRemoveMember(config.id, member)}>Confirm</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                         <div className="flex items-center gap-1">
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isSubmitting[config.id] || !member}>
+                                            <KeyRound className="text-muted-foreground h-4 w-4"/>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Send Password Reset?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will send a password reset link to <span className='font-bold'>{member}</span>. They will be able to reset their password.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handlePasswordReset(member)}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" disabled={isSubmitting[config.id]}>
+                                            <Trash2 className="text-destructive h-4 w-4"/>
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will remove <span className='font-bold'>{member}</span> from the {config.id} domain.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleRemoveMember(config.id, member)}>Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
                       </div>
                     ))
                   ) : (

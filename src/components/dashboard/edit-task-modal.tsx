@@ -5,7 +5,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { CalendarIcon, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { CalendarIcon, Loader2, Sparkles, Trash2, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -56,6 +56,8 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
+  
+  const isDomainLeadAssigned = currentUser?.role === 'domain-lead' && task.status === 'Unassigned' && task.assignedToLead?.id === currentUser.id;
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -186,6 +188,11 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
       attachment: attachmentPath,
     };
     
+    if (isDomainLeadAssigned) {
+        updatedTask.status = 'Pending';
+        updatedTask.assignedToLead = undefined; // Clear the lead assignment
+    }
+    
     onUpdateTask(task.id, updatedTask);
     form.reset();
     setIsOpen(false);
@@ -207,6 +214,15 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <ScrollArea className="h-[60vh] pr-6">
               <div className="space-y-4">
+                {isDomainLeadAssigned && (
+                    <div className="p-3 rounded-md bg-accent/20 text-accent-foreground border border-accent">
+                        <div className="flex items-center gap-2">
+                           <UserCheck/>
+                           <h3 className="font-semibold">Assign Task to Members</h3>
+                        </div>
+                        <p className="text-sm text-accent-foreground/80 mt-1">This task was assigned to you. Please review and assign it to members of your domain.</p>
+                    </div>
+                )}
                 <FormField
                   control={form.control}
                   name="title"
@@ -214,7 +230,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                     <FormItem>
                       <FormLabel>Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Implement new auth flow" {...field} />
+                        <Input placeholder="e.g., Implement new auth flow" {...field} disabled={isDomainLeadAssigned} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -228,7 +244,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Describe the task in detail..." className="min-h-[100px]" {...field} />
+                        <Textarea placeholder="Describe the task in detail..." className="min-h-[100px]" {...field} disabled={isDomainLeadAssigned} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -306,6 +322,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                                     'w-full pl-3 text-left font-normal',
                                     !field.value && 'text-muted-foreground'
                                   )}
+                                   disabled={isDomainLeadAssigned}
                                 >
                                   {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -334,7 +351,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                         <FormItem>
                           <FormLabel>Replace PDF</FormLabel>
                           <FormControl>
-                            <Input type="file" accept=".pdf" {...form.register('attachment')} />
+                            <Input type="file" accept=".pdf" {...form.register('attachment')} disabled={isDomainLeadAssigned} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -347,7 +364,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
             <DialogFooter className="justify-between">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button type="button" variant="destructive">
+                  <Button type="button" variant="destructive" disabled={isDomainLeadAssigned}>
                     <Trash2 className="mr-2 h-4 w-4" /> Delete Task
                   </Button>
                 </AlertDialogTrigger>
@@ -371,7 +388,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                 <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
                 <Button type="submit" disabled={isUploading}>
                   {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Update Task
+                  {isDomainLeadAssigned ? 'Assign Task' : 'Update Task'}
                 </Button>
               </div>
             </DialogFooter>

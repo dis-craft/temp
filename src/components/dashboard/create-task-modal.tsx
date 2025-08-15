@@ -21,17 +21,28 @@ import { useToast } from '@/hooks/use-toast';
 import type { Task, User } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const taskFormSchema = z.object({
   title: z.string().min(1, 'Title is required.'),
   description: z.string().min(1, 'Description is required.'),
   dueDate: z.date({ required_error: 'A due date is required.' }),
-  assignees: z.array(z.string()).min(1, 'At least one assignee is required.'),
+  assignees: z.array(z.string()).optional(),
+  assignedToLead: z.string().optional(),
   reminders: z.array(z.string()).optional(),
   attachment: z.any().optional(),
   sendEmail: z.boolean().default(false),
+}).refine(data => {
+    if (data.assignedToLead) {
+        return true; // if assignedToLead is present, assignees can be empty
+    }
+    return data.assignees && data.assignees.length > 0;
+}, {
+    message: "Either assign to a lead or select at least one member.",
+    path: ["assignees"],
 });
+
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
 
@@ -41,13 +52,15 @@ interface CreateTaskModalProps {
   onCreateTask: (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => void;
   allUsers: User[];
   assignableUsers: User[];
+  domainLeads: User[];
   currentUser: User | null;
 }
 
-export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, assignableUsers, currentUser }: CreateTaskModalProps) {
+export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, assignableUsers, domainLeads, currentUser }: CreateTaskModalProps) {
   const [isSuggesting, setIsSuggesting] = React.useState(false);
   const [isUploading, setIsUploading] = React.useState(false);
   const { toast } = useToast();
+  const isSuperAdmin = currentUser?.role === 'super-admin';
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -55,12 +68,21 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
       title: '',
       description: '',
       assignees: [],
+      assignedToLead: '',
       reminders: [],
       sendEmail: false,
     },
   });
 
   const descriptionValue = form.watch('description');
+  const assignedToLeadValue = form.watch('assignedToLead');
+
+
+  React.useEffect(() => {
+    if (assignedToLeadValue) {
+        form.setValue('assignees', []);
+    }
+  }, [assignedToLeadValue, form]);
 
   const handleSuggestion = async () => {
     if (!descriptionValue) {
@@ -74,11 +96,14 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
     setIsSuggesting(true);
     try {
       const result = await suggestAssignees({ taskDescription: descriptionValue });
-      const suggestedUserIds = result.suggestedAssignees
-        .map(name => allUsers.find(u => u.name === name)?.id)
-        .filter((id): id is string => !!id);
       
-      form.setValue('assignees', suggestedUserIds);
+      if (!isSuperAdmin) {
+          const suggestedUserIds = result.suggestedAssignees
+            .map(name => allUsers.find(u => u.name === name)?.id)
+            .filter((id): id is string => !!id);
+          form.setValue('assignees', suggestedUserIds);
+      }
+      
       form.setValue('reminders', result.suggestedReminderIntervals);
 
       toast({
@@ -132,7 +157,18 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
   };
 
   const onSubmit = async (data: TaskFormValues) => {
-    const assignees = allUsers.filter(u => data.assignees.includes(u.id));
+    let assignees: User[] = [];
+    let assignedToLead: User | undefined = undefined;
+    let status: Task['status'] = 'Pending';
+
+    if (data.assignedToLead) {
+        assignedToLead = domainLeads.find(l => l.id === data.assignedToLead);
+        status = 'Unassigned';
+    } else if (data.assignees) {
+        assignees = allUsers.filter(u => data.assignees!.includes(u.id));
+    }
+
+
     let attachmentPath = '';
 
     if (data.attachment && data.attachment[0]) {
@@ -144,8 +180,9 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
       title: data.title,
       description: data.description,
       dueDate: data.dueDate.toISOString(),
-      status: 'Pending',
+      status,
       assignees,
+      assignedToLead,
       comments: [],
       submissions: [],
       attachment: attachmentPath,
@@ -204,51 +241,78 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
                   Get AI Suggestions
                 </Button>
 
-                <FormField
-                  control={form.control}
-                  name="assignees"
-                  render={() => (
-                    <FormItem>
-                      <FormLabel>Assignees</FormLabel>
-                       <div className="grid grid-cols-2 gap-4">
-                          {assignableUsers.map((user) => (
-                            <FormField
-                              key={user.id}
-                              control={form.control}
-                              name="assignees"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem
-                                    key={user.id}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(user.id)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...(field.value || []), user.id])
-                                            : field.onChange(
-                                                field.value?.filter(
-                                                  (value) => value !== user.id
+                {isSuperAdmin ? (
+                    <FormField
+                      control={form.control}
+                      name="assignedToLead"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assign to Domain Lead</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a domain lead" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {domainLeads.map(lead => (
+                                    <SelectItem key={lead.id} value={lead.id}>
+                                        {formatUserName(lead, allUsers)}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                ) : (
+                    <FormField
+                    control={form.control}
+                    name="assignees"
+                    render={() => (
+                        <FormItem>
+                        <FormLabel>Assignees</FormLabel>
+                        <div className="grid grid-cols-2 gap-4">
+                            {assignableUsers.map((user) => (
+                                <FormField
+                                key={user.id}
+                                control={form.control}
+                                name="assignees"
+                                render={({ field }) => {
+                                    return (
+                                    <FormItem
+                                        key={user.id}
+                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                    >
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value?.includes(user.id)}
+                                            onCheckedChange={(checked) => {
+                                            return checked
+                                                ? field.onChange([...(field.value || []), user.id])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                    (value) => value !== user.id
+                                                    )
                                                 )
-                                              )
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                      {formatUserName(user, allUsers)}
-                                    </FormLabel>
-                                  </FormItem>
-                                )
-                              }}
-                            />
-                          ))}
-                        </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                                            }}
+                                        />
+                                        </FormControl>
+                                        <FormLabel className="font-normal">
+                                        {formatUserName(user, allUsers)}
+                                        </FormLabel>
+                                    </FormItem>
+                                    )
+                                }}
+                                />
+                            ))}
+                            </div>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                )}
                 
                 <div className="grid grid-cols-2 gap-4">
                     <FormField

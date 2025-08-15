@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -89,12 +90,13 @@ export default function Dashboard() {
       });
 
       if (sendEmail) {
+        const leadOrAssignees = newTask.assignedToLead ? [newTask.assignedToLead] : newTask.assignees;
         await fetch('/api/send-task-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             task: {...taskWithDomain, id: docRef.id},
-            assignees: newTask.assignees,
+            assignees: leadOrAssignees,
             domainLeadEmail: currentUser?.email
           }),
         });
@@ -158,11 +160,16 @@ export default function Dashboard() {
 
     let filteredTasks = tasks;
 
-    // Superadmin can filter by domain via URL
-    if ((currentUser.role === 'super-admin' || currentUser.role === 'admin') && domainFilter) {
-      filteredTasks = tasks.filter(task => task.domain === domainFilter);
+    // Superadmin/Admin can filter by domain via URL
+    if ((currentUser.role === 'super-admin' || currentUser.role === 'admin')) {
+      if (domainFilter) {
+          filteredTasks = tasks.filter(task => task.domain === domainFilter);
+      }
     } else if (currentUser.role === 'domain-lead') {
       filteredTasks = tasks.filter(task => task.domain === currentUser.domain);
+      // Domain leads should also see tasks assigned to them before they assign to members
+      filteredTasks = filteredTasks.filter(task => (task.status !== 'Unassigned' || task.assignedToLead?.id === currentUser.id));
+
     } else if (currentUser.role === 'member') {
       filteredTasks = tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
     }
@@ -184,6 +191,14 @@ export default function Dashboard() {
         return members;
     }
     return [];
+  }, [currentUser, allUsers, domainFilter]);
+
+  const domainLeads = React.useMemo(() => {
+     if (!currentUser || currentUser.role !== 'super-admin') return [];
+     if (domainFilter) {
+         return allUsers.filter(u => u.role === 'domain-lead' && u.domain === domainFilter);
+     }
+     return allUsers.filter(u => u.role === 'domain-lead');
   }, [currentUser, allUsers, domainFilter]);
 
   if (loadingUser) {
@@ -241,6 +256,7 @@ export default function Dashboard() {
         onCreateTask={addTask}
         allUsers={allUsers}
         assignableUsers={assignableUsers}
+        domainLeads={domainLeads}
         currentUser={currentUser}
       />
     </div>

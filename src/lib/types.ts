@@ -4,7 +4,7 @@ export interface User {
   email: string | null;
   avatarUrl: string | null;
   role: 'super-admin' | 'admin' | 'domain-lead' | 'member';
-  domain?: 'Mechanical' | 'Electrical' | 'Software' | null;
+  domain?: 'Mechanical' | 'Electrical' | 'Software' | string | null;
 }
 
 export interface Comment {
@@ -23,7 +23,7 @@ export interface Submission {
   remarks?: string;
 }
 
-export type TaskStatus = 'Pending' | 'In Progress' | 'Completed';
+export type TaskStatus = 'Pending' | 'In Progress' | 'Completed' | 'Unassigned';
 
 export interface Task {
   id:string;
@@ -35,5 +35,12 @@ export interface Task {
   comments: Comment[];
   submissions: Submission[];
   attachment?: string;
-  domain?: 'Mechanical' | 'Electrical' | 'Software';
+  domain?: 'Mechanical' | 'Electrical' | 'Software' | string;
+  assignedToLead?: User;
+}
+
+export interface SiteStatus {
+    emergencyShutdown: boolean;
+    maintenanceMode: boolean;
+    maintenanceETA?: string;
 }
