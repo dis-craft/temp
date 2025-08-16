@@ -45,4 +45,8 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 
-.idx
+# Ignore .idx folder
+.idx/
+
+# Ignore docs folder
+docs/
