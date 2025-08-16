@@ -1,4 +1,25 @@
-
+/**
+ * @fileoverview API Route for Sending Suggestion-Related Emails.
+ * @description This is a backend (BE) Next.js API route that handles sending emails for the
+ * Suggestions & Feedback feature. It supports two types of notifications.
+ *
+ * The POST handler uses a `type` field in the request body to differentiate between:
+ * - `new-suggestion`: Notifies all admins and the relevant domain lead (if any) that a new
+ *   suggestion has been submitted.
+ * - `new-response`: Notifies the original submitter (if not anonymous) that an admin or
+ *   lead has posted a response to their suggestion.
+ *
+ * It uses Nodemailer and the configured Gmail SMTP server to send formatted HTML emails.
+ *
+ * Linked Files:
+ * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD`.
+ * - `src/lib/types.ts`: Imports type definitions for `Suggestion` and `User`.
+ * - `src/app/dashboard/suggestions/page.tsx`: The frontend page that calls this API.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The API framework.
+ * - Nodemailer: For sending emails.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import type { Suggestion, User } from '@/lib/types';

@@ -1,4 +1,21 @@
-
+/**
+ * @fileoverview Tree Navigation Component (Legacy).
+ * @description This frontend (FE) file was the tree navigation component for the "Library" feature.
+ * It has since been refactored and renamed to support the `Documentation` feature.
+ *
+ * This file is now considered legacy and may be removed in a future cleanup.
+ * Its responsibilities were moved to `src/components/dashboard/documentation/tree-nav.tsx`.
+ *
+ * NOTE: This file and its corresponding folder (`/library`) have been renamed to `/documentation`
+ * to better reflect the feature's purpose. This file might still exist temporarily but is no longer
+ * in active use.
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - Next.js: For `Link` component and `useSearchParams`.
+ * - ShadCN UI: For `Collapsible` and `Button` components.
+ * - Lucide-React: For icons.
+ */
 'use client';
 
 import * as React from 'react';

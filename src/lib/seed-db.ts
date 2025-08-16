@@ -1,4 +1,29 @@
-
+/**
+ * @fileoverview Database Seeding Script.
+ * @description This is a backend (BE) utility script designed to populate the Firestore
+ * database with initial data. It's intended to be run once during the initial setup
+ * of the application.
+ *
+ * How it works:
+ * - It defines two configuration objects: `domainConfig` for creating domain documents
+ *   and `specialRolesConfig` for setting up initial admin users.
+ * - The `seedDatabase` function first checks if the 'domains' collection already has data
+ *   to prevent accidental re-seeding.
+ * - It uses a Firestore `writeBatch` to efficiently perform multiple write operations
+ *   (creating domain documents and the special roles configuration) as a single atomic unit.
+ *
+ * This script is crucial for setting up the application's foundational data structure
+ * for permissions and user organization.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
+ * - This script is not directly linked to any running part of the app but is a standalone
+ *   utility that would be manually executed by a developer.
+ *
+ * Tech Used:
+ * - Firebase Firestore: The target database.
+ * - Firebase Admin SDK (server-side): For performing batch writes.
+ */
 'use server';
 
 import { db } from './firebase';

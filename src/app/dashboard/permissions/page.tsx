@@ -1,4 +1,32 @@
-
+/**
+ * @fileoverview Manage Permissions Page Component.
+ * @description This is a frontend (FE) file for the 'Manage Permissions' page, accessible
+ * to admins and super-admins. It provides the UI for managing user roles and domain assignments.
+ *
+ * How it works:
+ * - It uses Firestore's `onSnapshot` to get real-time data for domain configurations
+ *   (from the 'domains' collection) and special roles (from 'config/specialRoles').
+ * - It allows admins to:
+ *   - Create and delete entire domains.
+ *   - Add or remove users (by email) as 'leads' or 'members' of a specific domain.
+ *   - Assign or revoke 'super-admin' or 'admin' roles.
+ * - All actions are performed by making calls to the `/api/update-permissions` backend route.
+ * - It uses `AlertDialog` components to confirm destructive actions like deleting a user or domain.
+ * - Provides a "Reset Password" feature which calls a function in `src/lib/firebase.ts`.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: For auth state and the password reset function.
+ * - `src/lib/types.ts`: Imports the `User` type definition.
+ * - `src/hooks/use-toast.ts`: For displaying notifications.
+ * - `/api/update-permissions/route.ts`: The backend API this page communicates with for all actions.
+ * - `src/components/ui/*`: Uses many ShadCN components (Card, Button, Input, Badge, etc.).
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - Next.js: For the application framework.
+ * - Firebase SDK: For real-time data fetching and auth.
+ * - ShadCN UI: For building the user interface.
+ */
 'use client';
 
 import * as React from 'react';

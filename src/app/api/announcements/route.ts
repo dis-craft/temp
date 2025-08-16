@@ -1,4 +1,28 @@
-
+/**
+ * @fileoverview API Route for Announcements CRUD Operations.
+ * @description This is a backend (BE) Next.js API route that handles all Create, Read, Update,
+ * and Delete (CRUD) operations for announcements. It uses Firebase Firestore as its database.
+ * 
+ * - `POST`: Creates a new announcement. It performs a permission check to ensure the user
+ *   (super-admin, admin, or domain-lead) is authorized to create announcements.
+ * - `PUT`: Updates an existing announcement. It verifies that the user has permission to
+ *   edit the specific announcement (either a high-level admin or the original author).
+ * - `DELETE`: Deletes an announcement. It performs similar permission checks as the PUT endpoint.
+ *
+ * This route is responsible for the core business logic of the announcements feature, including
+ * permission management and interaction with the Firestore database. It also logs all
+*  significant actions using the `logActivity` service.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
+ * - `src/lib/logger.ts`: Imports the `logActivity` function for auditing.
+ * - `src/lib/types.ts`: Imports type definitions for `User` and `Announcement`.
+ * - `src/app/dashboard/announcements/page.tsx`: The frontend page that calls this API to manage announcements.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The framework for building the API endpoint.
+ * - Firebase Firestore: The NoSQL database for storing announcement data.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';

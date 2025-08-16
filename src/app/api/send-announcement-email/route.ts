@@ -1,4 +1,30 @@
-
+/**
+ * @fileoverview API Route for Sending Announcement Emails.
+ * @description This is a backend (BE) Next.js API route responsible for sending email
+ * notifications for new or updated announcements.
+ *
+ * It receives announcement data in a POST request. The `getTargetUsers` function determines
+ * the recipient list by fetching all users from Firestore and filtering them based on the
+ * announcement's `targets` (e.g., role, domain).
+ *
+ * It then constructs an HTML email using the Nodemailer library and sends it via the configured
+ * Gmail SMTP server. The email includes the announcement title, content, author, and a link to
+ * an attachment if one exists.
+ *
+ * After successfully sending the email, it updates the announcement document in Firestore
+ * to mark it as `sent: true` to prevent duplicate notifications.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
+ * - `src/lib/types.ts`: Imports type definitions for `User`, `Announcement`, etc.
+ * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` to be set for Nodemailer.
+ * - `src/app/dashboard/announcements/page.tsx`: The frontend page that calls this API.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The API framework.
+ * - Nodemailer: The library used to send emails via SMTP.
+ * - Firebase Firestore: To fetch user data and update announcement status.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';

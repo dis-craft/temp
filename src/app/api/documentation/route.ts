@@ -1,4 +1,31 @@
-
+/**
+ * @fileoverview API Route for Documentation Hub CRUD Operations.
+ * @description This is a backend (BE) Next.js API route that handles all Create, Read, Update,
+ * and Delete (CRUD) operations for the Documentation Hub feature. It manages both files and folders.
+ * 
+ * - `POST`: Creates a new documentation item (either a 'folder' or a 'file'). It records metadata
+ *   in Firestore. For files, it assumes the file has already been uploaded to R2 storage.
+ * - `GET`: Fetches all documentation items from Firestore. It then filters this list based on the
+ *   `viewableBy` permissions of each item and the role of the currently authenticated user.
+ * - `PUT`: Updates an item's name or its `viewableBy` permissions.
+ * - `DELETE`: Deletes a file or a folder. If a folder is deleted, it recursively deletes all of its
+ *   contents (sub-folders and files) from both Firestore and the R2 bucket.
+ *
+ * This route enforces permissions, ensuring only authorized users (Superadmins or the 'Documentation'
+ * domain lead) can perform management actions.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
+ * - `src/lib/r2.ts`: Imports the S3 client for interacting with Cloudflare R2 storage.
+ * - `src/lib/logger.ts`: Imports the `logActivity` function.
+ * - `src/lib/types.ts`: Imports various type definitions.
+ * - `src/components/dashboard/documentation/index.tsx`: The primary frontend component that calls this API.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The API framework.
+ * - Firebase Firestore: Database for metadata.
+ * - Cloudflare R2 / AWS S3 SDK: For deleting objects from cloud storage.
+ */
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';

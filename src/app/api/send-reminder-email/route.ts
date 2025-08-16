@@ -1,3 +1,23 @@
+/**
+ * @fileoverview API Route for Sending Task Reminder Emails.
+ * @description This is a backend (BE) Next.js API route that sends email reminders to users
+ * who have not yet submitted their work for a specific task.
+ *
+ * It is triggered by a user action (e.g., a domain lead clicking a "Remind" button).
+ * The POST request should contain the task details, a list of members who haven't submitted,
+ * and the domain lead's email to be CC'd.
+ *
+ * It uses Nodemailer and Gmail's SMTP server to dispatch a formatted HTML email to all
+ * unsubmitted members, reminding them of the task and its due date.
+ *
+ * Linked Files:
+ * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` for Nodemailer.
+ * - `src/components/dashboard/task-details-modal.tsx`: The frontend modal that calls this API.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The API framework.
+ * - Nodemailer: For sending emails.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
@@ -62,5 +82,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to send email.' }, { status: 500 });
   }
 }
-
-

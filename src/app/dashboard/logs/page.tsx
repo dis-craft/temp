@@ -1,4 +1,32 @@
-
+/**
+ * @fileoverview Activity Logs Page Component.
+ * @description This is a frontend (FE) file that renders the Activity Logs page, which is
+ * accessible only to super-admins. It displays a paginated and filterable audit trail of
+ * significant actions across the application.
+ *
+ * How it works:
+ * - It uses Firestore's `onSnapshot` to listen for real-time updates to the `logs` collection.
+ * - It implements filtering by user email, log category, and a date range.
+ * - It handles pagination using Firestore cursors (`startAfter`, `endBefore`) to efficiently
+ *   load logs page by page.
+ * - It provides a feature to export the currently viewed logs to a CSV file.
+ * - It uses custom icons and colors to visually distinguish between different log categories.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
+ * - `src/lib/logger.ts`: Imports the `Log` and `LogCategory` type definitions.
+ * - `src/hooks/use-toast.ts`: For displaying notifications.
+ * - `src/components/ui/*`: Uses various ShadCN components for UI elements like Table, Card,
+ *   Input, Select, Popover, Calendar, etc.
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - Next.js: For the application framework.
+ * - Firebase SDK: For real-time queries, pagination, and data fetching from Firestore.
+ * - date-fns: For formatting timestamps.
+ * - ShadCN UI: For building the user interface.
+ * - Lucide-React: For icons.
+ */
 'use client';
 
 import * as React from 'react';
@@ -314,5 +342,3 @@ export default function LogsPage() {
         </div>
     )
 }
-
-    

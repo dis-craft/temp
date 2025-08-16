@@ -1,3 +1,23 @@
+/**
+ * @fileoverview Login Page Component.
+ * @description This is a frontend (FE) file that renders the login and sign-up page for the application.
+ * It's a client component (`'use client'`) because it contains interactive elements.
+ *
+ * How it works:
+ * - It provides the main layout for the login screen, including the app logo and title.
+ * - It renders the `LoginForm` component, which contains the actual logic for handling
+ *   user authentication (both email/password and Google Sign-In).
+ *
+ * Linked Files:
+ * - `src/components/login-form.tsx`: This is the primary component rendered on the page, containing
+ *   the authentication logic.
+ * - `src/components/icons.tsx`: Imports the `Logo` SVG component.
+ *
+ * Tech Used:
+ * - Next.js: For page routing.
+ * - React: For component structure.
+ * - ShadCN UI / Tailwind CSS: For styling the layout.
+ */
 'use client';
 import { LoginForm } from "@/components/login-form";
 import { Logo } from "@/components/icons";
@@ -19,5 +39,3 @@ export default function LoginPage() {
         </div>
     );
 }
-
-

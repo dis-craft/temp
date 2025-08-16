@@ -1,4 +1,35 @@
-
+/**
+ * @fileoverview Maintenance & Security Page Component.
+ * @description This is a frontend (FE) file that renders the site maintenance and security control
+ * page, which is accessible only to super-admins.
+ *
+ * How it works:
+ * - It fetches and displays the current site status from the `config/siteStatus` document in Firestore.
+ * - It allows a super-admin to toggle two main site-wide modes:
+ *   1. Emergency Shutdown: Immediately blocks access for all non-admin users.
+ *   2. Maintenance Mode: Shows a maintenance page to non-admin users.
+ * - An estimated time of completion (ETA) can be set for maintenance mode.
+ * - All actions are protected by confirmation dialogs (`AlertDialog`) to prevent accidental changes.
+ * - Changes are persisted back to Firestore, and all actions are logged.
+ *
+ * This component directly interacts with Firestore for real-time status updates and does not
+ * need a separate backend API route, as the actions are simple document updates and protected
+ * by Firestore Security Rules (implicitly, by being on a client-side admin page).
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`) and auth.
+ * - `src/lib/logger.ts`: For logging all status changes.
+ * - `src/lib/types.ts`: Imports the `SiteStatus` and `User` types.
+ * - `src/hooks/use-toast.ts`: For displaying success or error notifications.
+ * - `src/components/ui/*`: Uses various ShadCN components like Card, Switch, Button, AlertDialog.
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - Next.js: For the application framework.
+ * - Firebase SDK: For real-time data fetching and updates.
+ * - ShadCN UI: For the user interface components.
+ * - Lucide-React: For icons.
+ */
 'use client';
 
 import * as React from 'react';
@@ -9,7 +40,7 @@ import { Loader2, Hammer, Power } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { SiteStatus, User } from '@/lib/types';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
@@ -40,7 +71,7 @@ export default function MaintenancePage() {
             if (user) {
                 const userDocRef = doc(db, 'users', user.uid);
                 const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists) {
+                if (userDoc.exists()) {
                     setCurrentUser({ id: user.uid, ...userDoc.data() } as User);
                 }
             }

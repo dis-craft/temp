@@ -1,4 +1,24 @@
-
+/**
+ * @fileoverview API Route for Sending New Task Notification Emails.
+ * @description This is a backend (BE) Next.js API route that sends an email notification
+ * when a new task is created and assigned.
+ *
+ * It is triggered by the frontend after a task is successfully created in Firestore.
+ * The POST request should contain the task details, a list of assignees, and the email of
+ * the domain lead who created the task (to be CC'd).
+ *
+ * It uses Nodemailer and Gmail's SMTP server to dispatch a formatted HTML email to all
+ * assignees, informing them of the new task, its description, due date, and a link to
+ * any attachments.
+ *
+ * Linked Files:
+ * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD`.
+ * - `src/components/dashboard/index.tsx`: The frontend dashboard that calls this API.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The API framework.
+ * - Nodemailer: For sending emails.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
@@ -23,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No valid assignee emails found.' }, { status: 400 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetu-club.vercel.app';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetuclub.vercel.app';
   const taskUrl = `${appUrl}/dashboard`; 
   
   let attachmentLink = '';

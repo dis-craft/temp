@@ -1,4 +1,35 @@
-
+/**
+ * @fileoverview Announcements Page Component.
+ * @description This is a frontend (FE) file that renders the main page for the Announcements feature.
+ * It's a client-side component ('use client') that handles real-time data fetching, state management,
+ * and user interactions for announcements.
+ *
+ * How it works:
+ * - It uses `onAuthStateChanged` to get the current authenticated user.
+ * - It sets up real-time listeners (`onSnapshot`) with Firestore to fetch users, domains, and announcements.
+ * - Announcements are filtered on the client-side to ensure users only see what's targeted to them
+ *   (based on role, domain, or 'all').
+ * - It provides the logic for creating, updating, and deleting announcements by calling the
+ *   `/api/announcements` and `/api/send-announcement-email` API routes.
+ * - File uploads for attachments are handled by calling the `/api/upload` route.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: For authentication and Firestore database access.
+ * - `src/lib/types.ts`: Imports type definitions.
+ * - `src/hooks/use-toast.ts`: For displaying notifications to the user.
+ * - `src/components/dashboard/announcement-card.tsx`: Renders each individual announcement.
+ * - `src/components/dashboard/announcement-modal.tsx`: The modal for creating/editing announcements.
+ * - `/api/announcements/route.ts`: API for CRUD operations.
+ * - `/api/send-announcement-email/route.ts`: API for sending notification emails.
+ * - `/api/upload/route.ts`: API for handling file attachments.
+ *
+ * Tech Used:
+ * - React: For building the UI.
+ * - Next.js: As the application framework.
+ * - Firebase SDK: For real-time database listeners and authentication.
+ * - ShadCN UI: For UI components like Button, Card, Modal (Dialog).
+ * - Lucide-React: For icons.
+ */
 'use client';
 
 import * as React from 'react';
@@ -119,27 +150,20 @@ export default function AnnouncementsPage() {
             }
 
             const publishAt = new Date().toISOString();
+            
+            let finalAnnouncementData;
 
             if (editingAnnouncement) {
                 // Update
                 const annRef = doc(db, 'announcements', editingAnnouncement.id);
-                const updatedData = { ...data, attachment: attachmentPath, sent: false };
-                await updateDoc(annRef, updatedData); // Reset sent status on update
+                const updatedData = { ...data, attachment: attachmentPath, sent: false }; // Reset sent status on update
+                await updateDoc(annRef, updatedData);
                 
+                finalAnnouncementData = { ...updatedData, id: editingAnnouncement.id, author: currentUser, createdAt: editingAnnouncement.createdAt, publishAt: publishAt };
+
                 toast({ title: 'Announcement Updated', description: 'The announcement has been successfully updated.' });
                 await logActivity(`Updated announcement: "${data.title}"`, 'Announcements', currentUser);
                 
-                if (data.status === 'published') {
-                    const annDoc = await getDoc(annRef);
-                    if (annDoc.exists()) {
-                         await fetch('/api/send-announcement-email', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ announcement: {id: annDoc.id, ...annDoc.data()}}),
-                        });
-                    }
-                }
-
             } else {
                 // Create
                 const announcementWithMeta: Omit<Announcement, 'id'> = {
@@ -151,16 +175,18 @@ export default function AnnouncementsPage() {
                     sent: false,
                 };
                 const docRef = await addDoc(collection(db, 'announcements'), announcementWithMeta);
+                finalAnnouncementData = { ...announcementWithMeta, id: docRef.id };
                 toast({ title: 'Announcement Created', description: 'The announcement has been published.' });
                 await logActivity(`Created announcement: "${data.title}"`, 'Announcements', currentUser);
-                 // This is a simplified notification trigger. A real-world scenario would use a scheduled function.
-                if (data.status === 'published') {
-                    await fetch('/api/send-announcement-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ announcement: { ...announcementWithMeta, id: docRef.id } }),
-                    });
-                }
+            }
+            
+            // This is a simplified notification trigger. A real-world scenario would use a scheduled function.
+            if (finalAnnouncementData.status === 'published') {
+                 await fetch('/api/send-announcement-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ announcement: finalAnnouncementData }),
+                });
             }
 
 

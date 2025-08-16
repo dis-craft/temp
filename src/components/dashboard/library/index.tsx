@@ -1,4 +1,21 @@
-
+/**
+ * @fileoverview Library Main Component (Legacy).
+ * @description This frontend (FE) file was the main component for the "Library" feature.
+ * It has since been refactored and renamed to `Documentation`.
+ *
+ * This file is now considered legacy and may be removed in a future cleanup.
+ * Its responsibilities were moved to `src/components/dashboard/documentation/index.tsx`.
+ *
+ * NOTE: This file and its corresponding folder (`/library`) have been renamed to `/documentation`
+ * to better reflect the feature's purpose. This file might still exist temporarily but is no longer
+ * in active use.
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - Next.js: For routing and framework features.
+ * - Firebase SDK: For auth and data fetching.
+ * - ShadCN UI: For UI components.
+ */
 'use client';
 
 import * as React from 'react';

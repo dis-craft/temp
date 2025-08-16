@@ -1,4 +1,20 @@
-
+/**
+ * @fileoverview Edit Permissions Modal Component (Legacy).
+ * @description This frontend (FE) file defined the modal for editing the permissions of a file or folder
+ * in the "Library" feature. It has since been refactored and renamed to `Documentation`.
+ *
+ * This file is now considered legacy and may be removed in a future cleanup.
+ * Its responsibilities were moved to `src/components/dashboard/documentation/edit-permissions-modal.tsx`.
+ *
+ * NOTE: This file and its corresponding folder (`/library`) have been renamed to `/documentation`
+ * to better reflect the feature's purpose. This file might still exist temporarily but is no longer
+ * in active use.
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - react-hook-form / Zod: For form validation.
+ * - ShadCN UI: For `Dialog`, `Form`, `Button`, `Popover`, `Command` components.
+ */
 'use client';
 
 import * as React from 'react';

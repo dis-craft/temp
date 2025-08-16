@@ -1,4 +1,30 @@
-
+/**
+ * @fileoverview API Route for Managing Permissions and Domains.
+ * @description This is a comprehensive backend (BE) Next.js API route that serves as the central
+ * point for managing user permissions and domain structures. It's a multi-purpose endpoint
+ * controlled by an `action` field in the request body.
+ *
+ * Supported Actions:
+ * - `add-domain`: Creates a new domain document in Firestore. (Superadmin only)
+ * - `delete-domain`: Deletes a domain and all of its associated tasks. (Superadmin only)
+ * - `add-member` / `remove-member`: Adds or removes an email from a domain's `members` array.
+ * - `add-lead` / `remove-lead`: Adds or removes an email from a domain's `leads` array.
+ * - `add-special-role` / `remove-special-role`: Assigns or removes a 'super-admin' or 'admin'
+ *   role to/from a user by email in the `config/specialRoles` document.
+ *
+ * This route is critical for the administrative functions of the application. It performs
+ * permission checks based on the authenticated user's role and logs all actions.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
+ * - `src/lib/logger.ts`: Imports the `logActivity` function.
+ * - `src/lib/types.ts`: Imports the `User` type.
+ * - `src/app/dashboard/permissions/page.tsx`: The primary frontend management page that calls this API.
+ *
+ * Tech Used:
+ * - Next.js API Routes: The API framework.
+ * - Firebase Firestore: The database for all permission and domain data.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, deleteDoc, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';

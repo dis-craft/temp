@@ -1,3 +1,29 @@
+/**
+ * @fileoverview Genkit Flow for AI-Powered Assignee Suggestions.
+ * @description This is a backend (BE) file that defines a "flow" using Google's Genkit. 
+ * A flow is a server-side function that orchestrates calls to generative AI models.
+ * This specific flow takes a task description and uses a Gemini model to suggest potential assignees
+ * and reminder intervals for the task.
+ *
+ * It defines the input schema (SuggestAssigneesInputSchema) and output schema (SuggestAssigneesOutputSchema)
+ * using Zod for type safety and data validation. The `suggestAssignees` function serves as the
+ * primary export, providing a clean, callable interface for the frontend.
+ *
+ * The core logic resides in the `prompt` object, which templates the user's input into a structured
+ * prompt for the AI model, and the `suggestAssigneesFlow` which executes this prompt.
+ *
+ * This flow is invoked by frontend components, specifically `CreateTaskModal`, to provide
+ * intelligent defaults when a user is creating a new task.
+ * 
+ * Linked Files:
+ * - `src/ai/genkit.ts`: Imports the globally configured `ai` object.
+ * - `src/components/dashboard/create-task-modal.tsx`: This is the frontend component that calls the `suggestAssignees` function.
+ * 
+ * Tech Used:
+ * - Genkit: The core framework for defining the AI flow.
+ * - Zod: For defining input and output data schemas.
+ * - Google Gemini: The underlying generative model used for generating suggestions.
+ */
 'use server';
 
 /**

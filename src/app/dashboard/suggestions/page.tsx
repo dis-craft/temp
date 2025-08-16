@@ -1,4 +1,35 @@
-
+/**
+ * @fileoverview Suggestions & Feedback Page Component.
+ * @description This is a frontend (FE) file that renders the Suggestions & Feedback page.
+ * It allows users to submit suggestions, bug reports, or general feedback, and allows
+ * admins/leads to manage and respond to them.
+ *
+ * How it works:
+ * - It fetches all suggestions and users from Firestore in real-time.
+ * - It displays suggestions in a tabbed view:
+ *   - "My Submissions": Suggestions submitted by the current user.
+ *   - "Team Feedback": (Visible to Domain Leads) Suggestions from members of their domain.
+ *   - "All Feedback": (Visible to Admins/Superadmins) All suggestions from across the platform.
+ * - It provides a modal for creating new suggestions.
+ * - It allows authorized users to change the status of a suggestion and post responses.
+ * - All significant actions (creating, updating status, responding) trigger calls to the
+ *   `/api/send-suggestion-email` route to notify relevant parties.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: For authentication and Firestore database access.
+ * - `src/lib/types.ts`: Imports type definitions.
+ * - `src/hooks/use-toast.ts`: For displaying notifications.
+ * - `src/components/dashboard/suggestion-card.tsx`: Renders each individual suggestion.
+ * - `src/components/dashboard/suggestion-modal.tsx`: The modal for creating suggestions.
+ * - `/api/send-suggestion-email/route.ts`: The API for sending notification emails.
+ *
+ * Tech Used:
+ * - React: For UI and state management.
+ * - Next.js: For the application framework.
+ * - Firebase SDK: For real-time data fetching and updates.
+ * - ShadCN UI: For UI components (Tabs, Card, Button, Modal).
+ * - Lucide-React: For icons.
+ */
 'use client';
 
 import * as React from 'react';

@@ -1,3 +1,28 @@
+/**
+ * @fileoverview Global Stylesheet and CSS Variable Definitions.
+ * @description This is a frontend (FE) CSS file that defines the global styles and theme
+ * variables for the entire application. It's the foundation of the app's visual identity.
+ *
+ * How it works:
+ * - It uses `@tailwind` directives to import Tailwind CSS's base, components, and utilities layers.
+ * - It defines two themes, light (default) and dark, within a `@layer base` block.
+ * - Each theme consists of a set of CSS variables that control the application's color scheme,
+ *   following the conventions used by ShadCN UI (e.g., `--background`, `--primary`, `--accent`).
+ * - The primary, background, and accent colors are defined here to match the project's style guide.
+ * - These variables are then consumed by Tailwind CSS and ShadCN components throughout the app.
+ *
+ * This file is critical for the application's look and feel.
+ *
+ * Linked Files:
+ * - `src/app/layout.tsx`: This file is imported here, applying the styles globally.
+ * - `tailwind.config.ts`: The Tailwind config is set up to use the CSS variables defined here.
+ * - All components using Tailwind CSS or ShadCN UI are indirectly affected by this file.
+ *
+ * Tech Used:
+ * - CSS: For styling.
+ * - Tailwind CSS: For the utility-first CSS framework and its directives.
+ * - CSS Custom Properties (Variables): For theming.
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,3 +1,22 @@
+/**
+ * @fileoverview Textarea Component.
+ * @description A standard, reusable Textarea component for multi-line text input, built using
+ * Tailwind CSS for styling. This is a frontend (FE) component.
+ *
+ * It is a simple wrapper around the standard HTML `<textarea>` element, enhanced with styling
+ * from the project's design system (via Tailwind and `cn` utility).
+ *
+ * Linked Files:
+ * - This component is used in various forms across the application, such as:
+ *   - `src/components/dashboard/create-task-modal.tsx`
+ *   - `src/components/dashboard/edit-task-modal.tsx`
+ *   - `src/components/dashboard/suggestion-modal.tsx`
+ *   - `src/components/dashboard/announcement-modal.tsx`
+ *
+ * Tech Used:
+ * - React: For component creation.
+ * - Tailwind CSS / clsx / tailwind-merge: For styling.
+ */
 import * as React from 'react';
 
 import {cn} from '@/lib/utils';
