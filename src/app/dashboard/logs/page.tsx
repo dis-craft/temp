@@ -58,6 +58,8 @@ export default function LogsPage() {
     const [currentPage, setCurrentPage] = React.useState(1);
 
 
+
+    
     React.useEffect(() => {
         let constraints = [];
         if (emailFilter) {
