@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.idx/
 /out/
 
 # production
@@ -43,3 +44,5 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+.idx
