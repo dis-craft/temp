@@ -28,7 +28,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { Logo } from '@/components/icons';
 import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
@@ -156,8 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <SidebarHeader>
             <div className="flex items-center justify-center gap-2 p-2">
-                <Logo className="size-6 shrink-0 text-primary group-data-[collapsible=icon]:group-data-[state=expanded]:hidden" />
-                <Image src="https://placehold.co/32x32.png" alt="Vyomsetu Club Logo" width={32} height={32} className="hidden size-8 group-data-[collapsible=icon]:group-data-[state=collapsed]:block" data-ai-hint="logo" />
+                <Image src="https://i.ibb.co/L8dC1Jc/logo-1-removebg-preview.png" alt="Vyomsetu Club Logo" width={32} height={32} className="size-8 shrink-0" />
                 <span className="text-lg font-bold font-headline text-primary group-data-[collapsible=icon]:group-data-[state=collapsed]:hidden">vyomsetu-club</span>
             </div>
           </SidebarHeader>
