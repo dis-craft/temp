@@ -6,6 +6,7 @@ export interface User {
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
+  phoneNumber?: string | null;
   role: 'super-admin' | 'admin' | 'domain-lead' | 'member';
   domain?: 'Mechanical' | 'Electrical' | 'Software' | 'Documentation' | string | null;
 }

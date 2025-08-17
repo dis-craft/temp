@@ -55,6 +55,7 @@ import { Label } from '../ui/label';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
+  phoneNumber: z.string().optional().or(z.literal('')),
   avatarFile: z.any().optional(),
 });
 
@@ -76,6 +77,7 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: user.name || '',
+      phoneNumber: user.phoneNumber || '',
       avatarFile: undefined,
     },
   });
@@ -85,7 +87,7 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
 
   React.useEffect(() => {
     if (isOpen) {
-      form.reset({ name: user.name || '' });
+      form.reset({ name: user.name || '', phoneNumber: user.phoneNumber || '' });
       setPreview(user.avatarUrl);
     }
   }, [isOpen, user, form]);
@@ -119,7 +121,8 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
 
       const result = await response.json();
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      return `${appUrl}/api/download/${result.filePath}`;
+      // This is now correct, it returns a full URL.
+      return `https://imagedelivery.net/vyomsetu-images/${result.filePath}/public`;
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -132,12 +135,12 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
 
   const handleSubmit = async (data: ProfileFormValues) => {
     setIsSubmitting(true);
-    let avatarUrl = user.avatarUrl;
+    let newAvatarUrl = user.avatarUrl;
 
     if (data.avatarFile && data.avatarFile[0]) {
       const uploadedUrl = await uploadFile(data.avatarFile[0]);
       if (uploadedUrl) {
-        avatarUrl = uploadedUrl;
+        newAvatarUrl = uploadedUrl;
       } else {
         setIsSubmitting(false);
         return; // Stop if upload failed
@@ -148,7 +151,11 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
       const response = await fetch('/api/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-        body: JSON.stringify({ name: data.name, avatarUrl }),
+        body: JSON.stringify({ 
+            name: data.name, 
+            avatarUrl: newAvatarUrl,
+            phoneNumber: data.phoneNumber
+        }),
       });
 
       if (!response.ok) {
@@ -257,6 +264,21 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="phoneNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number (Optional)</FormLabel>
+                      <FormControl>
+                        <Input type="tel" placeholder="e.g. 91xxxxxxxxxx" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
 
                 <Separator />
                 

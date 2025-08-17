@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized: No user ID provided.' }, { status: 401 });
         }
 
-        const { name, avatarUrl } = await req.json();
+        const { name, avatarUrl, phoneNumber } = await req.json();
 
-        if (!name && !avatarUrl) {
+        if (!name && !avatarUrl && phoneNumber === undefined) {
             return NextResponse.json({ error: 'No update data provided.' }, { status: 400 });
         }
         
@@ -54,9 +54,11 @@ export async function POST(req: NextRequest) {
         if (name) authUpdates.displayName = name;
         if (avatarUrl) authUpdates.photoURL = avatarUrl;
         
-        const firestoreUpdates: { name?: string; avatarUrl?: string } = {};
+        const firestoreUpdates: { name?: string; avatarUrl?: string; phoneNumber?: string } = {};
         if (name) firestoreUpdates.name = name;
         if (avatarUrl) firestoreUpdates.avatarUrl = avatarUrl;
+        if (phoneNumber !== undefined) firestoreUpdates.phoneNumber = phoneNumber;
+
 
         // --- Perform Updates ---
         
