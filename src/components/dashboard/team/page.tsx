@@ -277,12 +277,12 @@ export default function TeamPage() {
                     <h1 className="text-3xl font-bold font-headline flex items-center gap-2"><Users /> The Team</h1>
                     <p className="text-muted-foreground">Meet the members driving the club forward.</p>
                 </div>
-                {isSuperAdmin && (
+                {/* {isSuperAdmin && (
                     <div className="flex items-center space-x-2">
                         <Switch id="modify-mode" checked={isModifyMode} onCheckedChange={setIsModifyMode} />
                         <Label htmlFor="modify-mode">Modify</Label>
                     </div>
-                )}
+                )} */}
             </header>
 
             <div className="space-y-8 overflow-y-auto flex-1 pr-2 -mr-2">
