@@ -134,9 +134,9 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
     let avatarUrl = user.avatarUrl;
 
     if (data.avatarFile && data.avatarFile[0]) {
-      const uploadedPath = await uploadFile(data.avatarFile[0]);
-      if (uploadedPath) {
-        avatarUrl = uploadedPath;
+      const uploadedUrl = await uploadFile(data.avatarFile[0]);
+      if (uploadedUrl) {
+        avatarUrl = uploadedUrl;
       } else {
         setIsSubmitting(false);
         return; // Stop if upload failed
