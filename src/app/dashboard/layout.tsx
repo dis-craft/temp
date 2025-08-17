@@ -47,7 +47,6 @@ import { Button } from '@/components/ui/button';
 import { formatUserName } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { logActivity } from '@/lib/logger';
-import { ProfileSettingsModal } from '@/components/dashboard/profile-settings-modal';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -55,7 +54,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [allUsers, setAllUsers] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [siteStatus, setSiteStatus] = React.useState<SiteStatus | null>(null);
-  const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
   const router = useRouter();
   const pathname = usePathname();
   
@@ -265,11 +263,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{formattedUserName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsProfileModalOpen(true)}>
-                    <Settings className="mr-2 h-4 w-4"/>
-                    Profile Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                     Sign Out
                 </DropdownMenuItem>
@@ -281,7 +274,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </SidebarInset>
       </div>
-      {user && <ProfileSettingsModal isOpen={isProfileModalOpen} setIsOpen={setIsProfileModalOpen} user={user} onProfileUpdate={() => fetchCurrentUser(user.id)}/>}
     </SidebarProvider>
   );
 }
