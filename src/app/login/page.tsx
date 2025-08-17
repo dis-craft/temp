@@ -24,7 +24,7 @@ import { Logo } from "@/components/icons";
 
 export default function LoginPage() {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+        <div className="relative flex flex-col items-center justify-center min-h-screen bg-background p-4">
             <div className="w-full max-w-md">
                 <div className="flex justify-center mb-6">
                     <div className="flex items-center gap-2">
@@ -36,9 +36,8 @@ export default function LoginPage() {
                 <p className="text-center text-muted-foreground mb-8">Sign in or create an account to continue.</p>
                 <LoginForm />
             </div>
-             <div className="absolute bottom-4 w-full max-w-md">
-                <div className="w-full border-t border-border"></div>
-                <p className="text-center text-sm text-muted-foreground mt-4">
+             <div className="absolute bottom-4 w-full text-center">
+                <p className="text-sm text-muted-foreground">
                     Contact for support: <a href="mailto:vyomsetuclub@gmail.com" className="text-primary hover:underline">vyomsetuclub@gmail.com</a>
                 </p>
             </div>
