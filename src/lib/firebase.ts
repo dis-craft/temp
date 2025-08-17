@@ -2,6 +2,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { logActivity } from "./logger";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -29,5 +30,13 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 
 export const sendPasswordReset = async (email: string) => {
-  return await sendPasswordResetEmail(auth, email);
+  try {
+    await sendPasswordResetEmail(auth, email);
+    await logActivity(`Password reset email sent to: ${email}`, 'Authentication', null);
+  } catch (error: any) {
+    console.error("Error sending password reset email:", error);
+    await logActivity(`Failed to send password reset to ${email}: ${error.code} - ${error.message}`, 'Error', null);
+    // Re-throw the error so the calling component can handle it
+    throw error;
+  }
 };
