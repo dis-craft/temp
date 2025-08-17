@@ -52,6 +52,7 @@ import { logActivity } from '@/lib/logger';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
+import { ScrollArea } from '../ui/scroll-area';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -120,9 +121,9 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
       }
 
       const result = await response.json();
+      // Corrected: Use R2 public URL format if applicable or construct full URL
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      // This is now correct, it returns a full URL.
-      return `https://imagedelivery.net/vyomsetu-images/${result.filePath}/public`;
+      return `${appUrl}/api/download/${result.filePath}`;
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -205,104 +206,108 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px] grid-rows-[auto,1fr,auto] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="font-headline">Profile Settings</DialogTitle>
           <DialogDescription>Manage your account settings and preferences.</DialogDescription>
         </DialogHeader>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-grow flex flex-col overflow-hidden">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="security">Security</TabsTrigger>
           </TabsList>
-          <TabsContent value="profile">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
-                <FormField
-                  control={form.control}
-                  name="avatarFile"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col items-center">
-                      <FormLabel htmlFor='avatar-upload' className='cursor-pointer'>
-                        <Avatar className="h-24 w-24">
-                          <AvatarImage src={preview || undefined} />
-                          <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                      </FormLabel>
-                      <FormControl>
-                         <Input
-                            id="avatar-upload"
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            {...avatarFileRef}
-                            onChange={(e) => {
-                                field.onChange(e.target.files);
-                                handleFileChange(e);
-                            }}
-                          />
-                      </FormControl>
-                       <Button type="button" size="sm" variant="link" asChild>
-                         <Label htmlFor='avatar-upload' className="cursor-pointer">
-                           Change Picture
-                         </Label>
-                       </Button>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Display Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Your Name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <TabsContent value="profile" className="flex-grow overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="pr-6">
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
+                    <FormField
+                      control={form.control}
+                      name="avatarFile"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col items-center">
+                          <FormLabel htmlFor='avatar-upload' className='cursor-pointer'>
+                            <Avatar className="h-24 w-24">
+                              <AvatarImage src={preview || undefined} />
+                              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                                id="avatar-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                {...avatarFileRef}
+                                onChange={(e) => {
+                                    field.onChange(e.target.files);
+                                    handleFileChange(e);
+                                }}
+                              />
+                          </FormControl>
+                          <Button type="button" size="sm" variant="link" asChild>
+                            <Label htmlFor='avatar-upload' className="cursor-pointer">
+                              Change Picture
+                            </Label>
+                          </Button>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Display Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your Name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                <FormField
-                  control={form.control}
-                  name="phoneNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number (Optional)</FormLabel>
-                      <FormControl>
-                        <Input type="tel" placeholder="e.g. 91xxxxxxxxxx" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    <FormField
+                      control={form.control}
+                      name="phoneNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number (Optional)</FormLabel>
+                          <FormControl>
+                            <Input type="tel" placeholder="e.g. 91xxxxxxxxxx" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
 
-                <Separator />
-                
-                <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Account Information</h4>
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Role</span>
-                        <Badge variant="secondary">{user.role}</Badge>
+                    <Separator />
+                    
+                    <div className="space-y-2">
+                        <h4 className="font-medium text-sm">Account Information</h4>
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Role</span>
+                            <Badge variant="secondary">{user.role}</Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Domain</span>
+                            <Badge variant="secondary">{user.domain || 'N/A'}</Badge>
+                        </div>
                     </div>
-                     <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Domain</span>
-                        <Badge variant="secondary">{user.domain || 'N/A'}</Badge>
-                    </div>
-                </div>
 
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save Changes
-                  </Button>
-                </div>
-              </form>
-            </Form>
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Changes
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            </ScrollArea>
           </TabsContent>
           <TabsContent value="security">
             <div className="space-y-6 py-4">
@@ -327,3 +332,5 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate 
     </Dialog>
   );
 }
+
+    
