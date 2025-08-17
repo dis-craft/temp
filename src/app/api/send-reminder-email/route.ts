@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No valid member emails found.' }, { status: 400 });
   }
   
-  const appUrl = 'https://vyomsetu-club.vercel.app/';
+  const appUrl = 'https://vyomsetu-club.vercel.app';
   const taskUrl = `${appUrl}/dashboard`;
 
   const mailOptions = {

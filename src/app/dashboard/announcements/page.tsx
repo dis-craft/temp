@@ -90,11 +90,15 @@ export default function AnnouncementsPage() {
             const now = new Date();
             const visibleAnnouncements = allAnnouncements.filter(a => {
                 const publishDate = new Date(a.publishAt);
-                if (publishDate > now) return false; // Don't show scheduled announcements that are not yet published
+                if (a.status !== 'published' || publishDate > now) return false;
+
+                // Admins and super-admins see all published announcements
+                if (currentUser.role === 'super-admin' || currentUser.role === 'admin') return true;
 
                 if (a.targets.includes('all')) return true;
                 if (a.targets.includes(`role-${currentUser.role}`)) return true;
                 if (currentUser.domain && a.targets.includes(`domain-${currentUser.domain}`)) return true;
+                
                 return false;
             });
             
