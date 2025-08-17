@@ -33,7 +33,7 @@ import * as React from 'react';
 import { collection, onSnapshot, query, orderBy, Timestamp, where, limit, startAfter, endBefore, limitToLast, QueryConstraint } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Database, AlertCircle, User, Shield, Briefcase, Power, Upload, Calendar as CalendarIcon, Search, ChevronsRight, ChevronsLeft, Download } from 'lucide-react';
+import { Loader2, Database, AlertCircle, User, Shield, Briefcase, Power, Upload, Calendar as CalendarIcon, Search, ChevronsRight, ChevronsLeft, Download, XCircle } from 'lucide-react';
 import type { Log } from '@/lib/logger';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -135,6 +135,14 @@ export default function LogsPage() {
     const handleDateRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
         setDateFilter(range || {});
         setSingleDateFilter(undefined); // Clear single date filter if range is set
+    }
+
+    const resetFilters = () => {
+        setEmailFilter('');
+        setCategoryFilter('all');
+        setDateFilter({});
+        setSingleDateFilter(undefined);
+        setCurrentPage(1);
     }
     
     React.useEffect(() => {
@@ -262,7 +270,7 @@ export default function LogsPage() {
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2"><Search/> Filter Logs</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <Input 
                         placeholder="Filter by user email..."
                         value={emailFilter}
@@ -311,28 +319,33 @@ export default function LogsPage() {
                             />
                         </PopoverContent>
                     </Popover>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                            variant={"outline"}
-                            className={cn(
-                                "justify-start text-left font-normal",
-                                !singleDateFilter && "text-muted-foreground"
-                            )}
-                            >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {singleDateFilter ? format(singleDateFilter, "PPP") : <span>Filter by date...</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={singleDateFilter}
-                                onSelect={handleSingleDateSelect}
-                                initialFocus
-                            />
-                        </PopoverContent>
-                    </Popover>
+                    <div className="flex gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !singleDateFilter && "text-muted-foreground"
+                                )}
+                                >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {singleDateFilter ? format(singleDateFilter, "PPP") : <span>Filter by date...</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={singleDateFilter}
+                                    onSelect={handleSingleDateSelect}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <Button variant="ghost" size="icon" onClick={resetFilters} aria-label="Reset Filters">
+                            <XCircle className="h-5 w-5" />
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 

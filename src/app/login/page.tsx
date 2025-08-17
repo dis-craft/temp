@@ -36,6 +36,12 @@ export default function LoginPage() {
                 <p className="text-center text-muted-foreground mb-8">Sign in or create an account to continue.</p>
                 <LoginForm />
             </div>
+             <div className="absolute bottom-4 w-full max-w-md">
+                <div className="w-full border-t border-border"></div>
+                <p className="text-center text-sm text-muted-foreground mt-4">
+                    Contact for support: <a href="mailto:vyomsetuclub@gmail.com" className="text-primary hover:underline">vyomsetuclub@gmail.com</a>
+                </p>
+            </div>
         </div>
     );
 }
