@@ -17,6 +17,7 @@ import { auth } from '@/lib/firebase';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
+import { formatUserName } from '@/lib/utils';
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -293,7 +294,3 @@ export default function TeamPage() {
         </div>
     )
 }
-
-    
-
-    
