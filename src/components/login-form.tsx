@@ -432,7 +432,7 @@ export function LoginForm() {
       </div>
       <Button
         variant="outline"
-        className="w-full"
+        className="w-full mt-4"
         onClick={handleGoogleSignIn}
         disabled={isLoading}
       >
