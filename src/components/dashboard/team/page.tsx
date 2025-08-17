@@ -2,16 +2,21 @@
 'use client';
 
 import * as React from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Users, Mail } from 'lucide-react';
+import { Loader2, Users, Mail, Edit } from 'lucide-react';
 import type { User as UserType } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -26,14 +31,24 @@ const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
 );
 
 
-const RoleSection = ({ title, users, badgeClass }: { title: string, users: UserType[], badgeClass?: string }) => {
+const RoleSection = ({ title, users, badgeClass, isModifyMode, onEdit }: { title: string, users: UserType[], badgeClass?: string, isModifyMode: boolean, onEdit: (user: UserType) => void }) => {
     if (users.length === 0) return null;
     return (
         <div className="space-y-4">
             <h2 className="text-xl font-bold font-headline">{title}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {users.map(user => (
-                    <Card key={user.id} className="text-center p-4">
+                    <Card key={user.id} className="text-center p-4 relative group">
+                         {isModifyMode && (
+                            <Button 
+                                variant="secondary" 
+                                size="icon" 
+                                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => onEdit(user)}
+                            >
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                        )}
                         <CardContent className="flex flex-col items-center gap-2">
                             <Avatar className="h-20 w-20 border-2">
                                 <AvatarImage src={user.avatarUrl || ''} />
@@ -67,7 +82,7 @@ const RoleSection = ({ title, users, badgeClass }: { title: string, users: UserT
     );
 }
 
-const MemberSection = ({ users }: { users: UserType[] }) => {
+const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isModifyMode: boolean, onEdit: (user: UserType) => void }) => {
     const membersByDomain = React.useMemo(() => {
         const grouped: Record<string, UserType[]> = {};
         users.forEach(user => {
@@ -95,7 +110,17 @@ const MemberSection = ({ users }: { users: UserType[] }) => {
                     <h3 className="text-lg font-semibold mb-3 border-b pb-2">{domain}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {domainUsers.map(user => (
-                             <Card key={user.id} className="text-center p-4">
+                             <Card key={user.id} className="text-center p-4 relative group">
+                                 {isModifyMode && (
+                                    <Button 
+                                        variant="secondary" 
+                                        size="icon" 
+                                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => onEdit(user)}
+                                    >
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                )}
                                 <CardContent className="flex flex-col items-center gap-2">
                                     <Avatar className="h-20 w-20 border-2">
                                         <AvatarImage src={user.avatarUrl || ''} />
@@ -133,10 +158,60 @@ const MemberSection = ({ users }: { users: UserType[] }) => {
 
 export default function TeamPage() {
     const [allUsers, setAllUsers] = React.useState<UserType[]>([]);
+    const [authorizedEmails, setAuthorizedEmails] = React.useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = React.useState(true);
+    const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
+    const [isModifyMode, setIsModifyMode] = React.useState(false);
     const { toast } = useToast();
+    const router = useRouter();
+
 
     React.useEffect(() => {
+        const unsubAuth = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
+            if(user) {
+                const userDocRef = doc(db, 'users', user.uid);
+                onSnapshot(userDocRef, (doc) => {
+                     if(doc.exists()) {
+                        setCurrentUser({ id: user.uid, ...doc.data() } as UserType);
+                    }
+                });
+            }
+        });
+
+        const unsubs: (()=>void)[] = [];
+
+        // Listener for all authorized emails from domains and special roles
+        const domainsQuery = query(collection(db, 'domains'));
+        const unsubDomains = onSnapshot(domainsQuery, (snapshot) => {
+            const emails = new Set<string>();
+            snapshot.docs.forEach(doc => {
+                const data = doc.data();
+                (data.leads || []).forEach((e: string) => emails.add(e));
+                (data.members || []).forEach((e: string) => emails.add(e));
+            });
+             setAuthorizedEmails(prev => {
+                const newEmails = new Set(prev);
+                emails.forEach(e => newEmails.add(e));
+                return newEmails;
+            });
+        });
+        unsubs.push(unsubDomains);
+        
+        const unsubSpecialRoles = onSnapshot(doc(db, 'config', 'specialRoles'), (doc) => {
+             if (doc.exists()) {
+                const data = doc.data();
+                const emails = new Set(Object.keys(data));
+                 setAuthorizedEmails(prev => {
+                    const newEmails = new Set(prev);
+                    emails.forEach(e => newEmails.add(e));
+                    return newEmails;
+                });
+            }
+        });
+        unsubs.push(unsubSpecialRoles);
+
+
+        // Listener for user data
         const usersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
             setAllUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType)));
             setIsLoading(false);
@@ -145,20 +220,32 @@ export default function TeamPage() {
             toast({ variant: 'destructive', title: 'Error loading users' });
             setIsLoading(false);
         });
+        unsubs.push(usersUnsub);
 
         return () => {
-            usersUnsub();
+            unsubs.forEach(unsub => unsub());
+            unsubAuth();
         };
     }, [toast]);
+    
+    const handleEditUser = (user: UserType) => {
+        router.push('/dashboard/permissions');
+    }
 
-    const groupedUsers = React.useMemo(() => {
+    const filteredAndGroupedUsers = React.useMemo(() => {
         const groups: Record<string, UserType[]> = {
             'super-admin': [],
             'admin': [],
             'domain-lead': [],
             'member': []
         };
-        allUsers.forEach(user => {
+        
+        if(authorizedEmails.size === 0 && !isLoading) return groups;
+
+        // Filter users to only include those whose emails are in the authorized list
+        const visibleUsers = allUsers.filter(user => user.email && authorizedEmails.has(user.email));
+
+        visibleUsers.forEach(user => {
             if (groups[user.role]) {
                 groups[user.role].push(user);
             }
@@ -170,7 +257,7 @@ export default function TeamPage() {
 
         return groups;
 
-    }, [allUsers]);
+    }, [allUsers, authorizedEmails, isLoading]);
 
     if (isLoading) {
         return (
@@ -180,6 +267,8 @@ export default function TeamPage() {
         );
     }
     
+    const isSuperAdmin = currentUser?.role === 'super-admin';
+
     return (
         <div className="w-full h-full flex flex-col space-y-6">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b gap-4">
@@ -187,16 +276,24 @@ export default function TeamPage() {
                     <h1 className="text-3xl font-bold font-headline flex items-center gap-2"><Users /> The Team</h1>
                     <p className="text-muted-foreground">Meet the members driving the club forward.</p>
                 </div>
+                {isSuperAdmin && (
+                    <div className="flex items-center space-x-2">
+                        <Switch id="modify-mode" checked={isModifyMode} onCheckedChange={setIsModifyMode} />
+                        <Label htmlFor="modify-mode">Modify</Label>
+                    </div>
+                )}
             </header>
 
             <div className="space-y-8 overflow-y-auto flex-1 pr-2 -mr-2">
-                 <RoleSection title="Super Admins" users={groupedUsers['super-admin']} badgeClass="border-destructive text-destructive" />
-                 <RoleSection title="Admins" users={groupedUsers['admin']} badgeClass="border-primary text-primary" />
-                 <RoleSection title="Domain Leads" users={groupedUsers['domain-lead']} badgeClass="border-secondary-foreground" />
-                 <MemberSection users={groupedUsers['member']} />
+                 <RoleSection title="Super Admins" users={filteredAndGroupedUsers['super-admin']} badgeClass="border-destructive text-destructive" isModifyMode={isModifyMode} onEdit={handleEditUser} />
+                 <RoleSection title="Admins" users={filteredAndGroupedUsers['admin']} badgeClass="border-primary text-primary" isModifyMode={isModifyMode} onEdit={handleEditUser} />
+                 <RoleSection title="Domain Leads" users={filteredAndGroupedUsers['domain-lead']} badgeClass="border-secondary-foreground" isModifyMode={isModifyMode} onEdit={handleEditUser} />
+                 <MemberSection users={filteredAndGroupedUsers['member']} isModifyMode={isModifyMode} onEdit={handleEditUser} />
             </div>
         </div>
     )
 }
+
+    
 
     
