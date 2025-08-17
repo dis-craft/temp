@@ -110,17 +110,15 @@ export async function POST(req: NextRequest) {
             
             const specialRolesRef = doc(db, 'config', 'specialRoles');
             const docSnap = await getDoc(specialRolesRef);
-
-            if (!docSnap.exists()) {
-                await setDoc(specialRolesRef, {});
-            }
+            let currentRoles = docSnap.exists() ? docSnap.data() : {};
 
             if (action === 'add-special-role') {
                 if (!role) return NextResponse.json({ error: 'Role is required.' }, { status: 400 });
-                 await updateDoc(specialRolesRef, { [email]: role });
+                //  Update the specific email with the new role
+                 currentRoles[email] = role;
+                 await setDoc(specialRolesRef, currentRoles);
                  await logActivity(`Assigned special role "${role}" to "${email}"`, 'Permissions', user);
             } else if (action === 'remove-special-role') {
-                 const currentRoles = docSnap.data() || {};
                  delete currentRoles[email];
                  await setDoc(specialRolesRef, currentRoles);
                  await logActivity(`Removed special role from "${email}"`, 'Permissions', user);
