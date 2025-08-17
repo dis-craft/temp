@@ -8,7 +8,7 @@
  * - It uses ShadCN's `Tabs` component to switch between "Sign In" and "Sign Up" forms.
  * - It uses `react-hook-form` and `zod` for robust form validation on all input fields.
  * - It communicates directly with the Firebase Authentication SDK for all auth operations
- *   (e.g., `createUserWithEmailAndPassword`, `signInWithPopup`).
+ *   (e.g., `createUserWithEmailAndPassw ord`, `signInWithPopup`).
  * - **Authorization Check**: Before any sign-in or sign-up attempt, it now calls `isEmailAuthorized`
  *   to verify that the user's email has been pre-registered in the system by an admin. If not,
  *   the auth attempt is blocked, and an error is shown.

@@ -3,7 +3,7 @@
  * @description This is a frontend (FE) file that renders the login and sign-up page for the application.
  * It's a client component (`'use client'`) because it contains interactive elements.
  *
- * How it works:
+ * How it works:  
  * - It provides the main layout for the login screen, including the app logo and title.
  * - It renders the `LoginForm` component, which contains the actual logic for handling
  *   user authentication (both email/password and Google Sign-In).

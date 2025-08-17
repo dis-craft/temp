@@ -1,7 +1,7 @@
 /**
  * @fileoverview Activity Logs Page Component.
  * @description This is a frontend (FE) file that renders the Activity Logs page, which is
- * accessible only to super-admins. It displays a paginated and filterable audit trail of
+ * accessible only to super-admins . It displays a paginated and filterable audit trail of
  * significant actions across the application.
  *
  * How it works:

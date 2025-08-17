@@ -1,4 +1,4 @@
-// Import the functions you need from the SDKs you need
+// Import the functions you need from the SDKs yo u need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
