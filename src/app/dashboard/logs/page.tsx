@@ -87,6 +87,7 @@ export default function LogsPage() {
     const [emailFilter, setEmailFilter] = React.useState('');
     const [categoryFilter, setCategoryFilter] = React.useState<LogCategory | 'all'>('all');
     const [dateFilter, setDateFilter] = React.useState<{ from?: Date; to?: Date }>({});
+    const [singleDateFilter, setSingleDateFilter] = React.useState<Date | undefined>(undefined);
 
     // Pagination state
     const [lastVisible, setLastVisible] = React.useState<any>(null);
@@ -104,24 +105,37 @@ export default function LogsPage() {
         if (categoryFilter !== 'all') {
             constraints.push(where('category', '==', categoryFilter));
         }
-        if (dateFilter.from) {
-             constraints.push(where('timestamp', '>=', Timestamp.fromDate(dateFilter.from)));
-        }
-        if (dateFilter.to) {
-            const toDate = new Date(dateFilter.to);
+
+        if (singleDateFilter) {
+            const startOfDay = new Date(singleDateFilter);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(singleDateFilter);
+            endOfDay.setHours(23, 59, 59, 999);
+            constraints.push(where('timestamp', '>=', Timestamp.fromDate(startOfDay)));
+            constraints.push(where('timestamp', '<=', Timestamp.fromDate(endOfDay)));
+        } else if (dateFilter.from) {
+            constraints.push(where('timestamp', '>=', Timestamp.fromDate(dateFilter.from)));
+            const toDate = dateFilter.to ? new Date(dateFilter.to) : new Date(dateFilter.from);
             toDate.setHours(23, 59, 59, 999); // Include the whole day
             constraints.push(where('timestamp', '<=', Timestamp.fromDate(toDate)));
         }
         
-        // Firestore requires a composite index to order by a field when filtering by another.
-        // To avoid crashes, we only sort by timestamp if there are no other filters applied,
-        // or if a date range filter is applied (as this is on the same 'timestamp' field).
         if (!hasComplexFilter) {
             constraints.push(orderBy('timestamp', 'desc'));
         }
 
         return constraints;
-    }, [emailFilter, categoryFilter, dateFilter]);
+    }, [emailFilter, categoryFilter, dateFilter, singleDateFilter]);
+    
+    const handleSingleDateSelect = (date: Date | undefined) => {
+        setSingleDateFilter(date);
+        setDateFilter({}); // Clear range filter if single date is set
+    }
+
+    const handleDateRangeSelect = (range: { from?: Date; to?: Date } | undefined) => {
+        setDateFilter(range || {});
+        setSingleDateFilter(undefined); // Clear single date filter if range is set
+    }
     
     React.useEffect(() => {
         const constraints = buildQueryConstraints();
@@ -248,7 +262,7 @@ export default function LogsPage() {
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2"><Search/> Filter Logs</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Input 
                         placeholder="Filter by user email..."
                         value={emailFilter}
@@ -268,8 +282,12 @@ export default function LogsPage() {
                      <Popover>
                         <PopoverTrigger asChild>
                             <Button
+                            id="date-range-picker-trigger"
                             variant={"outline"}
-                            className="justify-start text-left font-normal"
+                            className={cn(
+                                "justify-start text-left font-normal",
+                                !dateFilter.from && "text-muted-foreground"
+                            )}
                             >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {dateFilter.from ? 
@@ -280,10 +298,38 @@ export default function LogsPage() {
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
+                                initialFocus
                                 mode="range"
                                 selected={dateFilter}
-                                onSelect={setDateFilter as any}
+                                onSelect={handleDateRangeSelect as any}
                                 numberOfMonths={2}
+                                footer={
+                                    <p className="text-center text-sm text-muted-foreground p-2 pt-0">
+                                      {!dateFilter.from ? "Select a start date." : !dateFilter.to ? "Select an end date." : " "}
+                                    </p>
+                                  }
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                            variant={"outline"}
+                            className={cn(
+                                "justify-start text-left font-normal",
+                                !singleDateFilter && "text-muted-foreground"
+                            )}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {singleDateFilter ? format(singleDateFilter, "PPP") : <span>Filter by date...</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={singleDateFilter}
+                                onSelect={handleSingleDateSelect}
+                                initialFocus
                             />
                         </PopoverContent>
                     </Popover>
