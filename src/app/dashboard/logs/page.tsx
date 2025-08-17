@@ -45,6 +45,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogCategory } from '@/lib/logger';
+import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 const categoryIcons: Record<LogCategory, React.ReactNode> = {
@@ -55,6 +57,9 @@ const categoryIcons: Record<LogCategory, React.ReactNode> = {
     'Site Status': <Power className="h-4 w-4" />,
     'Submissions': <Upload className="h-4 w-4" />,
     'Error': <AlertCircle className="h-4 w-4" />,
+    'Announcements': <AlertCircle className="h-4 w-4" />,
+    'Documentation Hub': <AlertCircle className="h-4 w-4" />,
+    'Suggestions': <AlertCircle className="h-4 w-4" />,
 };
 
 const categoryColors: Record<LogCategory, string> = {
@@ -65,6 +70,9 @@ const categoryColors: Record<LogCategory, string> = {
     'Site Status': 'bg-red-500/20 text-red-700 border-red-400',
     'Submissions': 'bg-yellow-500/20 text-yellow-700 border-yellow-400',
     'Error': 'bg-destructive/20 text-destructive-foreground',
+    'Announcements': 'bg-pink-500/20 text-pink-700 border-pink-400',
+    'Documentation Hub': 'bg-teal-500/20 text-teal-700 border-teal-400',
+    'Suggestions': 'bg-cyan-500/20 text-cyan-700 border-cyan-400',
 };
 
 
@@ -84,6 +92,7 @@ export default function LogsPage() {
     const [lastVisible, setLastVisible] = React.useState<any>(null);
     const [firstVisible, setFirstVisible] = React.useState<any>(null);
     const [currentPage, setCurrentPage] = React.useState(1);
+    const isMobile = useIsMobile();
 
 
 
@@ -128,7 +137,12 @@ export default function LogsPage() {
             },
             (error) => {
                 console.error("Error fetching logs:", error);
-                toast({ variant: 'destructive', title: 'Failed to load logs' });
+                toast({ 
+                    variant: 'destructive', 
+                    title: 'Failed to load logs',
+                    description: "A database index is required. Please check the browser console for a link to create it.",
+                    duration: 10000
+                });
                 setIsLoading(false);
             }
         );
@@ -284,14 +298,36 @@ export default function LogsPage() {
                     <div className="text-center py-10 text-muted-foreground">
                         <p>No activity logs found matching your criteria.</p>
                     </div>
+                ) : isMobile ? (
+                    <div className="space-y-4">
+                        {logs.map((log) => (
+                             <Card key={log.id}>
+                                <CardContent className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <Badge variant="outline" className={`${categoryColors[log.category]} flex items-center gap-2`}>
+                                            {categoryIcons[log.category]}
+                                            {log.category}
+                                        </Badge>
+                                        <p className="text-right text-muted-foreground text-xs">
+                                          {log.timestamp ? format((log.timestamp as Timestamp).toDate(), 'PPpp') : 'N/A'}
+                                        </p>
+                                    </div>
+                                    <p className="font-medium">{log.message}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        User: {log.user?.name || log.user?.email || 'System'}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
                 ) : (
                 <Card>
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className='w-[100px]'>Category</TableHead>
+                                <TableHead className='w-[180px]'>Category</TableHead>
                                 <TableHead>Message</TableHead>
-                                <TableHead>User</TableHead>
+                                <TableHead className='hidden lg:table-cell'>User</TableHead>
                                 <TableHead className='text-right'>Timestamp</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -305,7 +341,7 @@ export default function LogsPage() {
                                          </Badge>
                                     </TableCell>
                                     <TableCell className="font-medium">{log.message}</TableCell>
-                                    <TableCell className="text-muted-foreground">{log.user?.name || log.user?.email || 'System'}</TableCell>
+                                    <TableCell className="text-muted-foreground hidden lg:table-cell">{log.user?.name || log.user?.email || 'System'}</TableCell>
                                     <TableCell className="text-right text-muted-foreground text-xs">
                                        {log.timestamp ? format((log.timestamp as Timestamp).toDate(), 'PPpp') : 'N/A'}
                                     </TableCell>
@@ -342,3 +378,5 @@ export default function LogsPage() {
         </div>
     )
 }
+
+    
