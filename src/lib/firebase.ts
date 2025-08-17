@@ -33,6 +33,14 @@ export const sendPasswordReset = async (email: string) => {
   try {
     await sendPasswordResetEmail(auth, email);
     await logActivity(`Password reset email sent to: ${email}`, 'Authentication', null);
+
+    // Send notification email to admin
+    await fetch('/api/send-password-reset-notice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
   } catch (error: any) {
     console.error("Error sending password reset email:", error);
     await logActivity(`Failed to send password reset to ${email}: ${error.code} - ${error.message}`, 'Error', null);

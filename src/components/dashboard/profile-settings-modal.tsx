@@ -49,6 +49,8 @@ import { User } from '@/lib/types';
 import { auth, sendPasswordReset } from '@/lib/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { logActivity } from '@/lib/logger';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -114,7 +116,7 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
       }
 
       const result = await response.json();
-      return `https://placehold.co/128x128.png`; // Using placeholder to avoid R2 download issues for avatar
+      return `/api/download/${result.filePath}`;
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -210,14 +212,15 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
                   name="avatarFile"
                   render={({ field }) => (
                     <FormItem className="flex flex-col items-center">
-                      <FormLabel>
-                        <Avatar className="h-24 w-24 cursor-pointer">
+                      <FormLabel htmlFor='avatar-upload' className='cursor-pointer'>
+                        <Avatar className="h-24 w-24">
                           <AvatarImage src={preview || undefined} />
                           <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
                         </Avatar>
                       </FormLabel>
                       <FormControl>
                          <Input
+                            id="avatar-upload"
                             type="file"
                             accept="image/*"
                             className="hidden"
@@ -228,6 +231,11 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
                             }}
                           />
                       </FormControl>
+                       <Button type="button" size="sm" variant="link" asChild>
+                         <Label htmlFor='avatar-upload' className="cursor-pointer">
+                           Change Picture
+                         </Label>
+                       </Button>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -245,7 +253,22 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
                     </FormItem>
                   )}
                 />
-                <div className="flex justify-end gap-2">
+
+                <Separator />
+                
+                <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Account Information</h4>
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Role</span>
+                        <Badge variant="secondary">{user.role}</Badge>
+                    </div>
+                     <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Domain</span>
+                        <Badge variant="secondary">{user.domain || 'N/A'}</Badge>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
                   <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
