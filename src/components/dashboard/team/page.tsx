@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { formatUserName } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const WhatsAppIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg
@@ -39,18 +40,8 @@ const RoleSection = ({ title, users, badgeClass, isModifyMode, onEdit }: { title
             <h2 className="text-xl font-bold font-headline">{title}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {users.map(user => (
-                    <Card key={user.id} className="text-center p-4 relative group">
-                         {isModifyMode && (
-                            <Button 
-                                variant="secondary" 
-                                size="icon" 
-                                className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => onEdit(user)}
-                            >
-                                <Edit className="h-4 w-4" />
-                            </Button>
-                        )}
-                        <CardContent className="flex flex-col items-center gap-2">
+                    <Card key={user.id} className="text-center flex flex-col">
+                        <CardContent className="p-4 flex flex-col items-center gap-2 flex-grow">
                             <Avatar className="h-20 w-20 border-2">
                                 <AvatarImage src={user.avatarUrl || ''} />
                                 <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
@@ -60,18 +51,21 @@ const RoleSection = ({ title, users, badgeClass, isModifyMode, onEdit }: { title
                                 <Badge variant="outline" className={badgeClass}>{user.domain ? `${user.domain} - ${user.role}` : user.role}</Badge>
                             </div>
                         </CardContent>
-                         <CardFooter className="flex justify-center gap-2 pt-4">
+                         <CardFooter className="flex-col items-center justify-center gap-2 pt-2">
+                             <Separator className="mb-2" />
                             {user.email && (
-                                <Link href={`mailto:${user.email}`} passHref>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <Mail className="h-5 w-5" />
+                                <Link href={`mailto:${user.email}`} passHref className="w-full">
+                                    <Button variant="ghost" size="sm" className="w-full h-8 text-xs truncate">
+                                        <Mail className="h-4 w-4 mr-2" />
+                                        {user.email}
                                     </Button>
                                 </Link>
                             )}
                             {user.phoneNumber && (
-                                <Link href={`https://wa.me/${user.phoneNumber}`} passHref target="_blank" rel="noopener noreferrer">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                                        <WhatsAppIcon className="h-5 w-5" />
+                                <Link href={`https://wa.me/${user.phoneNumber}`} passHref target="_blank" rel="noopener noreferrer" className="w-full">
+                                    <Button variant="ghost" size="sm" className="w-full h-8 text-xs">
+                                        <WhatsAppIcon className="h-4 w-4 mr-2" />
+                                        WhatsApp
                                     </Button>
                                 </Link>
                             )}
@@ -111,18 +105,8 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
                     <h3 className="text-lg font-semibold mb-3 border-b pb-2">{domain}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {domainUsers.map(user => (
-                             <Card key={user.id} className="text-center p-4 relative group">
-                                 {isModifyMode && (
-                                    <Button 
-                                        variant="secondary" 
-                                        size="icon" 
-                                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => onEdit(user)}
-                                    >
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                )}
-                                <CardContent className="flex flex-col items-center gap-2">
+                             <Card key={user.id} className="text-center flex flex-col">
+                                <CardContent className="p-4 flex flex-col items-center gap-2 flex-grow">
                                     <Avatar className="h-20 w-20 border-2">
                                         <AvatarImage src={user.avatarUrl || ''} />
                                         <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
@@ -132,18 +116,21 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
                                         <Badge variant="outline" className="border-muted-foreground">{user.role}</Badge>
                                     </div>
                                 </CardContent>
-                                <CardFooter className="flex justify-center gap-2 pt-4">
+                                <CardFooter className="flex-col items-center justify-center gap-2 pt-2">
+                                    <Separator className="mb-2" />
                                     {user.email && (
-                                        <Link href={`mailto:${user.email}`} passHref>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                <Mail className="h-5 w-5" />
+                                        <Link href={`mailto:${user.email}`} passHref className="w-full">
+                                            <Button variant="ghost" size="sm" className="w-full h-8 text-xs truncate">
+                                                <Mail className="h-4 w-4 mr-2" />
+                                                {user.email}
                                             </Button>
                                         </Link>
                                     )}
                                     {user.phoneNumber && (
-                                        <Link href={`https://wa.me/${user.phoneNumber}`} passHref target="_blank" rel="noopener noreferrer">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                 <WhatsAppIcon className="h-5 w-5" />
+                                        <Link href={`https://wa.me/${user.phoneNumber}`} passHref target="_blank" rel="noopener noreferrer" className="w-full">
+                                            <Button variant="ghost" size="sm" className="w-full h-8 text-xs">
+                                                 <WhatsAppIcon className="h-4 w-4 mr-2" />
+                                                 WhatsApp
                                             </Button>
                                         </Link>
                                     )}
