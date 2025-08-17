@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
         <p>This is an automated notification to inform you that a password reset has been initiated for the following user:</p>
         <p><strong>User Email:</strong> ${email}</p>
         <p>If you were not expecting this, you may want to check the activity logs for more details.</p>
+        <p>To manage users or manually send a password reset, click this link:</p>
+        <p><a href="https://console.firebase.google.com/project/vyom-setu-website/authentication/users" target="_blank" rel="noopener noreferrer">Manage Users in Firebase</a></p>
         <br/>
         <p><em>- The Vyomsetu Club Platform</em></p>
       </div>
