@@ -30,7 +30,7 @@
 'use client';
 
 import * as React from 'react';
-import { collection, onSnapshot, query, orderBy, Timestamp, where, limit, startAfter, endBefore, limitToLast } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, Timestamp, where, limit, startAfter, endBefore, limitToLast, QueryConstraint } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Database, AlertCircle, User, Shield, Briefcase, Power, Upload, Calendar as CalendarIcon, Search, ChevronsRight, ChevronsLeft, Download } from 'lucide-react';
@@ -93,14 +93,13 @@ export default function LogsPage() {
     const [firstVisible, setFirstVisible] = React.useState<any>(null);
     const [currentPage, setCurrentPage] = React.useState(1);
     const isMobile = useIsMobile();
-
-
-
     
-    React.useEffect(() => {
-        let constraints = [];
+    const buildQueryConstraints = React.useCallback(() => {
+        const constraints: QueryConstraint[] = [];
+        const hasComplexFilter = emailFilter || categoryFilter !== 'all';
+
         if (emailFilter) {
-            constraints.push(where('user.email', '==', emailFilter));
+            constraints.push(where('user.email', '==', emailFilter.trim()));
         }
         if (categoryFilter !== 'all') {
             constraints.push(where('category', '==', categoryFilter));
@@ -113,10 +112,21 @@ export default function LogsPage() {
             toDate.setHours(23, 59, 59, 999); // Include the whole day
             constraints.push(where('timestamp', '<=', Timestamp.fromDate(toDate)));
         }
+        
+        // Firestore requires a composite index to order by a field when filtering by another.
+        // To avoid crashes, we only sort by timestamp if there are no other filters applied,
+        // or if a date range filter is applied (as this is on the same 'timestamp' field).
+        if (!hasComplexFilter) {
+            constraints.push(orderBy('timestamp', 'desc'));
+        }
 
+        return constraints;
+    }, [emailFilter, categoryFilter, dateFilter]);
+    
+    React.useEffect(() => {
+        const constraints = buildQueryConstraints();
         const logsQuery = query(
             collection(db, 'logs'), 
-            orderBy('timestamp', 'desc'),
             ...constraints,
             limit(LOGS_PER_PAGE)
         );
@@ -140,7 +150,7 @@ export default function LogsPage() {
                 toast({ 
                     variant: 'destructive', 
                     title: 'Failed to load logs',
-                    description: "A database index is required. Please check the browser console for a link to create it.",
+                    description: "A database index may be required for this filter combination. Please check the browser console for a link to create it.",
                     duration: 10000
                 });
                 setIsLoading(false);
@@ -148,21 +158,17 @@ export default function LogsPage() {
         );
 
         return () => unsubscribe();
-    }, [toast, emailFilter, categoryFilter, dateFilter]);
+    }, [toast, buildQueryConstraints]);
     
     const fetchPage = (direction: 'next' | 'prev') => {
         setIsLoading(true);
-        let constraints = [];
-        if (emailFilter) constraints.push(where('user.email', '==', emailFilter));
-        if (categoryFilter !== 'all') constraints.push(where('category', '==', categoryFilter));
-        if (dateFilter.from) constraints.push(where('timestamp', '>=', dateFilter.from));
-        if (dateFilter.to) constraints.push(where('timestamp', '<=', dateFilter.to));
+        const constraints = buildQueryConstraints();
+        const hasComplexFilter = emailFilter || categoryFilter !== 'all';
 
         let newQuery;
         if (direction === 'next') {
             newQuery = query(
                 collection(db, 'logs'),
-                orderBy('timestamp', 'desc'),
                 ...constraints,
                 startAfter(lastVisible),
                 limit(LOGS_PER_PAGE)
@@ -171,7 +177,6 @@ export default function LogsPage() {
         } else { // prev
             newQuery = query(
                 collection(db, 'logs'),
-                orderBy('timestamp', 'desc'),
                 ...constraints,
                 endBefore(firstVisible),
                 limitToLast(LOGS_PER_PAGE)
@@ -186,20 +191,16 @@ export default function LogsPage() {
                 setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
                 setFirstVisible(snapshot.docs[0]);
             } else {
-                // If we go back and there are no results, it means we are at the beginning
                 if (direction === 'prev') {
-                    // Refetch first page
-                    const firstPageQuery = query(collection(db, 'logs'), orderBy('timestamp', 'desc'), ...constraints, limit(LOGS_PER_PAGE));
-                    onSnapshot(firstPageQuery, (firstPageSnapshot) => {
-                        const logsData = firstPageSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Log));
-                        setLogs(logsData);
-                        setLastVisible(firstPageSnapshot.docs[firstPageSnapshot.docs.length - 1]);
-                        setFirstVisible(firstPageSnapshot.docs[0]);
-                    })
+                    setCurrentPage(1);
                 }
             }
             setIsLoading(false);
             unsubscribe();
+        }, (error) => {
+             console.error("Error fetching page:", error);
+             toast({ variant: 'destructive', title: 'Error', description: "Failed to load the next page of logs." });
+             setIsLoading(false);
         });
     };
 
@@ -378,5 +379,3 @@ export default function LogsPage() {
         </div>
     )
 }
-
-    
