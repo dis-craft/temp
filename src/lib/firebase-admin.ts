@@ -14,7 +14,7 @@
  * account credentials.
  *
  * Linked Files:
- * - `.env`: Must contain the `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
+ * - `.env`: Must contain `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
  * - `src/app/api/update-profile/route.ts`: Imports and uses the `adminApp`.
  *
  * Tech Used:
@@ -39,11 +39,14 @@ if (!admin.apps.length) {
         }
     });
   } else {
-    const serviceAccount = {
+    // The private key must have newlines properly escaped in the environment variable.
+    // Vercel automatically handles this, but for .env files, they must be literal `\n`.
+    const privateKey = FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+
+    const serviceAccount: admin.ServiceAccount = {
       projectId: FIREBASE_PROJECT_ID,
       clientEmail: FIREBASE_CLIENT_EMAIL,
-      // The private key must have newlines escaped in the environment variable.
-      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey,
     };
     
     adminAppInstance = admin.initializeApp({
