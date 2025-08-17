@@ -1,10 +1,39 @@
-
+/**
+ * @fileoverview Login and Sign-Up Form Component.
+ * @description This is a frontend (FE) client-side component that provides the complete UI and logic
+ * for user authentication. It handles email/password sign-up, email/password sign-in, Google sign-in,
+ * and password reset functionality.
+ *
+ * How it works:
+ * - It uses ShadCN's `Tabs` component to switch between "Sign In" and "Sign Up" forms.
+ * - It uses `react-hook-form` and `zod` for robust form validation on all input fields.
+ * - It communicates directly with the Firebase Authentication SDK for all auth operations
+ *   (e.g., `createUserWithEmailAndPassword`, `signInWithPopup`).
+ * - **Authorization Check**: Before any sign-in or sign-up attempt, it now calls `isEmailAuthorized`
+ *   to verify that the user's email has been pre-registered in the system by an admin. If not,
+ *   the auth attempt is blocked, and an error is shown.
+ * - Upon successful authentication, it calls the `handleAuth` function to create a corresponding
+ *   user document in Firestore if one doesn't already exist.
+ *
+ * Linked Files:
+ * - `src/lib/firebase.ts`: Imports the Firebase app instance (`app`) and auth functions.
+ * - `src/lib/types.ts`: Imports the `User` type definition.
+ * - `src/lib/logger.ts`: Imports the `logActivity` function for auditing.
+ * - `src/app/login/page.tsx`: This component is rendered by the main login page.
+ *
+ * Tech Used:
+ * - React: For component state and logic.
+ * - Next.js: For routing (`useRouter`).
+ * - Firebase SDK: For all authentication methods.
+ * - ShadCN UI: For `Tabs`, `Button`, `Input`, `Form`, `AlertDialog`, etc.
+ * - Zod / react-hook-form: For form validation.
+ */
 'use client';
 
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db, sendPasswordReset } from '@/lib/firebase';
-import { doc, setDoc, getDoc, collection, getDocs, query } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -68,6 +97,28 @@ export function LoginForm() {
     defaultValues: { email: '' },
   });
 
+  const isEmailAuthorized = async (email: string): Promise<boolean> => {
+    // Check special roles
+    const specialRolesRef = doc(db, 'config', 'specialRoles');
+    const specialRolesSnap = await getDoc(specialRolesRef);
+    if (specialRolesSnap.exists() && specialRolesSnap.data()[email]) {
+        return true;
+    }
+
+    // Check domain leads and members
+    const domainsQuery = query(collection(db, 'domains'));
+    const domainsSnapshot = await getDocs(domainsQuery);
+    for (const domainDoc of domainsSnapshot.docs) {
+        const domainData = domainDoc.data();
+        if ((domainData.leads || []).includes(email) || (domainData.members || []).includes(email)) {
+            return true;
+        }
+    }
+    
+    return false;
+  };
+
+
   const getRoleForEmail = async (email: string): Promise<{ role: User['role']; domain?: User['domain'] }> => {
     // Check special roles first
     const specialRolesRef = doc(db, 'config', 'specialRoles');
@@ -93,7 +144,7 @@ export function LoginForm() {
         }
     }
 
-    // Default to member with no domain if not found anywhere
+    // This should ideally not be reached if isEmailAuthorized is checked first.
     return { role: 'member', domain: undefined };
   };
 
@@ -138,6 +189,23 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
+      const email = result.user.email;
+
+      if (!email) {
+          throw new Error("Could not retrieve email from Google Sign-In.");
+      }
+
+      const authorized = await isEmailAuthorized(email);
+      if (!authorized) {
+        await auth.signOut(); // Important: sign out the unauthorized user from Firebase
+        toast({
+            variant: 'destructive',
+            title: 'Unauthorized Access',
+            description: "This email address is not authorized to access this platform. Please contact an administrator."
+        });
+        return; // Stop execution
+      }
+
       await handleAuth(result.user);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Login Failed', description: error.message });
@@ -149,6 +217,17 @@ export function LoginForm() {
 
   const handleSignUp = async (values: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
+    const authorized = await isEmailAuthorized(values.email);
+    if (!authorized) {
+        toast({
+            variant: 'destructive',
+            title: 'Unauthorized Access',
+            description: "This email address is not authorized to sign up. Please contact an administrator to be added to the system."
+        });
+        setIsLoading(false);
+        return;
+    }
+
     const auth = getAuth(app);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
@@ -163,6 +242,17 @@ export function LoginForm() {
 
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
     setIsLoading(true);
+    const authorized = await isEmailAuthorized(values.email);
+    if (!authorized) {
+        toast({
+            variant: 'destructive',
+            title: 'Unauthorized Access',
+            description: "This email address is not authorized to access this platform."
+        });
+        setIsLoading(false);
+        return;
+    }
+
     const auth = getAuth(app);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
