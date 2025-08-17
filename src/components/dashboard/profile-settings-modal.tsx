@@ -64,9 +64,10 @@ interface ProfileSettingsModalProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   user: User;
+  onProfileUpdate: () => void;
 }
 
-export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSettingsModalProps) {
+export function ProfileSettingsModal({ isOpen, setIsOpen, user, onProfileUpdate }: ProfileSettingsModalProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("profile");
   const { toast } = useToast();
@@ -157,6 +158,7 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
       
       toast({ title: "Profile Updated", description: "Your changes have been saved." });
       await logActivity('User updated their profile', 'Authentication', user);
+      await onProfileUpdate(); // Manually trigger a refresh
       setIsOpen(false);
     } catch (error) {
       toast({

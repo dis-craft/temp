@@ -34,7 +34,7 @@ import { app, db } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import type { User, SiteStatus } from '@/lib/types';
-import { collection, doc, onSnapshot, query } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, getDoc } from 'firebase/firestore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +59,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  
+  const fetchCurrentUser = async (uid: string) => {
+      const userRef = doc(db, 'users', uid);
+      const docSnap = await getDoc(userRef);
+      if (docSnap.exists()) {
+        setUser({ id: docSnap.id, ...docSnap.data() } as User);
+      }
+  };
 
   React.useEffect(() => {
     const auth = getAuth(app);
@@ -267,7 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </SidebarInset>
       </div>
-      {user && <ProfileSettingsModal isOpen={isProfileModalOpen} setIsOpen={setIsProfileModalOpen} user={user} />}
+      {user && <ProfileSettingsModal isOpen={isProfileModalOpen} setIsOpen={setIsProfileModalOpen} user={user} onProfileUpdate={() => fetchCurrentUser(user.id)}/>}
     </SidebarProvider>
   );
 }
