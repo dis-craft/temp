@@ -20,7 +20,10 @@ const firebaseConfig = {
 };
 
 if (!firebaseConfig.apiKey) {
-    throw new Error("Missing Firebase config. Please set NEXT_PUBLIC_FIREBASE_... variables in your .env file.");
+    // During build, env vars might not be available. We don't want to throw.
+    if (typeof window !== 'undefined') {
+      console.error("Missing Firebase config. Please set NEXT_PUBLIC_FIREBASE_... variables in your .env file.");
+    }
 }
 
 
