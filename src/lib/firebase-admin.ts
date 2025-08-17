@@ -24,16 +24,29 @@
  */
 import * as admin from 'firebase-admin';
 
-if (!process.env.FIREBASE_ADMIN_CONFIG) {
-    throw new Error('The FIREBASE_ADMIN_CONFIG environment variable is not set.');
-}
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CONFIG);
+let adminAppInstance: admin.app.App;
 
 if (!admin.apps.length) {
-    admin.initializeApp({
+  if (!process.env.FIREBASE_ADMIN_CONFIG) {
+    console.warn('FIREBASE_ADMIN_CONFIG is not set. Firebase Admin SDK will not be initialized. This is expected during build, but will cause runtime errors if API routes using it are called.');
+    // Create a proxy or a placeholder that will throw an error only if used
+    adminAppInstance = new Proxy({} as admin.app.App, {
+        get(target, prop) {
+            if (prop in target) {
+                 return target[prop as keyof typeof target];
+            }
+            throw new Error('Firebase Admin SDK was not initialized because FIREBASE_ADMIN_CONFIG was not provided.');
+        }
+    });
+  } else {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CONFIG);
+    adminAppInstance = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
     });
+  }
+} else {
+    adminAppInstance = admin.apps[0]!;
 }
 
-export const adminApp = admin.apps[0]!;
+export const adminApp = adminAppInstance;
