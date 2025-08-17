@@ -51,6 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { logActivity } from '@/lib/logger';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
+import { Label } from '../ui/label';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
