@@ -187,6 +187,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
+               <SidebarMenuItem>
+                <Link href="/dashboard/team" className="w-full">
+                  <SidebarMenuButton tooltip="Team" isActive={pathname === '/dashboard/team'}>
+                    <Users />
+                    <span>Team</span>
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <Link href="/dashboard/suggestions" className="w-full">
                   <SidebarMenuButton tooltip="Suggestions" isActive={pathname === '/dashboard/suggestions'}>
