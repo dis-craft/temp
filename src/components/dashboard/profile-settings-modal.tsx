@@ -117,7 +117,8 @@ export function ProfileSettingsModal({ isOpen, setIsOpen, user }: ProfileSetting
       }
 
       const result = await response.json();
-      return `/api/download/${result.filePath}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      return `${appUrl}/api/download/${result.filePath}`;
     } catch (error) {
       toast({
         variant: 'destructive',
