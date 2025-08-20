@@ -15,6 +15,9 @@ import {
   Megaphone,
   Trophy,
   ChevronsUpDown,
+  Mail,
+  UserCircle,
+  Briefcase,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -49,6 +52,7 @@ import { Button } from '@/components/ui/button';
 import { formatUserName } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { logActivity } from '@/lib/logger';
+import { Badge } from '@/components/ui/badge';
 
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
@@ -291,12 +295,40 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                     </Avatar>
                 </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>{formattedUserName}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                    Sign Out
-                </DropdownMenuItem>
+                <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{user.name}</p>
+                            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                        </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-sm">
+                        <div className="flex items-center gap-2">
+                            <UserCircle className="h-4 w-4 text-muted-foreground" />
+                            <span>Role:</span>
+                            <Badge variant="secondary" className="capitalize">{user.role.replace('-', ' ')}</Badge>
+                        </div>
+                    </div>
+                     {(user.domains && user.domains.length > 0) && (
+                        <div className="px-2 py-1.5 text-sm">
+                            <div className="flex items-start gap-2">
+                                <Briefcase className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                <div>
+                                    <span>Domains:</span>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {user.domains.map(domain => (
+                                            <Badge key={domain} variant="outline">{domain}</Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut}>
+                        Sign Out
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
           </header>
