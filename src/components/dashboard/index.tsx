@@ -191,7 +191,7 @@ export default function Dashboard() {
         filteredTasks = filteredTasks.filter(task => (task.status !== 'Unassigned' || task.assignedToLead?.id === currentUser.id));
       } else {
         // if no active domain, show all tasks from all their domains
-        filteredTasks = tasks.filter(task => currentUser.domains.includes(task.domain || ''));
+        filteredTasks = tasks.filter(task => (currentUser.domains || []).includes(task.domain || ''));
       }
     } else if (currentUser.role === 'member') {
       if (activeDomain) {
@@ -211,11 +211,11 @@ export default function Dashboard() {
     
     if (currentUser.role === 'domain-lead' || currentUser.role === 'super-admin' || currentUser.role === 'admin') {
       if (activeDomain) {
-        return allUsers.filter(u => u.role === 'member' && u.domains.includes(activeDomain));
+        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(activeDomain));
       }
       // If no domain context, a lead can only assign to their primary domain.
-      if(currentUser.role === 'domain-lead' && currentUser.domains.length > 0) {
-        return allUsers.filter(u => u.role === 'member' && u.domains.includes(currentUser.domains[0]));
+      if(currentUser.role === 'domain-lead' && (currentUser.domains || []).length > 0) {
+        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(currentUser.domains[0]));
       }
       // Admins without context can assign to any member
       return allUsers.filter(u => u.role === 'member');
@@ -228,7 +228,7 @@ export default function Dashboard() {
      const activeDomain = domainFilter || currentUser.activeDomain;
      const leads = allUsers.filter(u => u.role === 'domain-lead');
      if ((currentUser.role === 'super-admin' || currentUser.role === 'admin') && activeDomain) {
-         return leads.filter(u => u.domains.includes(activeDomain));
+         return leads.filter(u => (u.domains || []).includes(activeDomain));
      }
      return leads;
   }, [currentUser, allUsers, domainFilter]);
