@@ -60,6 +60,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const [allUsers, setAllUsers] = React.useState<User[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [siteStatus, setSiteStatus] = React.useState<SiteStatus | null>(null);
+  const [domains, setDomains] = React.useState<any[]>([]);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -99,10 +100,16 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         setAllUsers(usersData);
     });
 
+    const domainsUnsub = onSnapshot(collection(db, 'domains'), (snapshot) => {
+        setDomains(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+
     return () => {
       unsubscribeAuth();
       unsubscribeSiteStatus();
       unsubscribeUsers();
+      domainsUnsub();
     };
   }, [router]);
   
@@ -122,6 +129,17 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
     router.push(`${pathname}?${params.toString()}`);
   }
   
+  const userDomains = React.useMemo(() => {
+    if (!user || !user.email) return [];
+    return domains
+      .filter(domain => 
+        (domain.leads || []).includes(user.email) || 
+        (domain.members || []).includes(user.email)
+      )
+      .map(domain => domain.id)
+      .sort();
+  }, [user, domains]);
+
   if (loading || !user) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
@@ -154,7 +172,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   }
 
   const pageTitle = searchParams.get('domain') || user.activeDomain || 'Dashboard';
-  const canSwitchDomains = user.domains && user.domains.length > 1;
+  const canSwitchDomains = userDomains && userDomains.length > 1;
 
   return (
     <SidebarProvider>
@@ -272,7 +290,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                          <DropdownMenuLabel>Switch Domain</DropdownMenuLabel>
                          <DropdownMenuSeparator />
                          <DropdownMenuRadioGroup value={user.activeDomain || ''} onValueChange={handleDomainChange}>
-                          {user.domains.map((domain) => (
+                          {userDomains.map((domain) => (
                               <DropdownMenuRadioItem key={domain} value={domain}>
                                 {domain}
                               </DropdownMenuRadioItem>
@@ -310,14 +328,14 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                             <Badge variant="secondary" className="capitalize">{user.role.replace('-', ' ')}</Badge>
                         </div>
                     </div>
-                     {(user.domains && user.domains.length > 0) && (
+                     {(userDomains && userDomains.length > 0) && (
                         <div className="px-2 py-1.5 text-sm">
                             <div className="flex items-start gap-2">
                                 <Briefcase className="h-4 w-4 text-muted-foreground mt-0.5" />
                                 <div>
                                     <span>Domains:</span>
                                     <div className="flex flex-wrap gap-1 mt-1">
-                                        {user.domains.map(domain => (
+                                        {userDomains.map(domain => (
                                             <Badge key={domain} variant="outline">{domain}</Badge>
                                         ))}
                                     </div>
