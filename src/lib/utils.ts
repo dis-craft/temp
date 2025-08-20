@@ -27,7 +27,7 @@ export function formatUserName(user: User, allUsers: User[] = []): string {
   };
   
   const role = user.role;
-  const domain = user.activeDomain || user.domains[0];
+  const domain = user.activeDomain || (user.domains && user.domains.length > 0 ? user.domains[0] : null);
 
   let suffix = roleAbbr[role];
   let group: User[] = [];
