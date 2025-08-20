@@ -41,7 +41,7 @@ export interface Task {
   submissions: Submission[];
   attachment?: string;
   domain?: 'Mechanical' | 'Electrical' | 'Software' | string;
-  assignedToLead?: User;
+  assignedToLead?: User | null;
 }
 
 export interface SiteStatus {

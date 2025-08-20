@@ -74,12 +74,12 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
     if (!currentUser) return [];
     if (currentUser.role === 'domain-lead') {
         // Domain leads can only assign to members of their domain
-        return allUsers.filter(u => u.role === 'member' && u.domain === currentUser.domain);
+        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(currentUser.domain || ''));
     }
     if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
       // If task has a domain, only show members of that domain
       if (task.domain) {
-        return allUsers.filter(u => u.role === 'member' && u.domain === task.domain);
+        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(task.domain));
       }
       // Otherwise, show all members
       return allUsers.filter(u => u.role === 'member');
@@ -180,7 +180,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
       if (!attachmentPath) return; // Stop submission if upload fails
     }
 
-    const updatedTask: Partial<Omit<Task, 'id'>> = {
+    const updatedTask: Partial<Omit<Task, 'id' | 'assignedToLead'>> & { assignedToLead?: User | null } = {
       title: data.title,
       description: data.description,
       dueDate: data.dueDate.toISOString(),
@@ -190,7 +190,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
     
     if (isDomainLeadAssigned) {
         updatedTask.status = 'Pending';
-        updatedTask.assignedToLead = undefined; // Clear the lead assignment
+        updatedTask.assignedToLead = null;
     }
     
     onUpdateTask(task.id, updatedTask);

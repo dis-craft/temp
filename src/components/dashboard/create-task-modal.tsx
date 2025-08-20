@@ -162,40 +162,33 @@ export function CreateTaskModal({ isOpen, setIsOpen, onCreateTask, allUsers, ass
   };
 
   const onSubmit = async (data: TaskFormValues) => {
-    let assignees: User[] = [];
-    let assignedToLead: User | undefined = undefined;
-    let status: Task['status'] = 'Pending';
-    
-    if (isSuperAdmin && data.assignmentType === 'domainLeads') {
-        const leadUsers = allUsers.filter(u => data.assignees!.includes(u.id));
-        // For simplicity, assigning to the first selected lead if multiple are chosen
-        assignedToLead = leadUsers[0]; 
-        status = 'Unassigned';
-    } else {
-        assignees = allUsers.filter(u => data.assignees!.includes(u.id));
-    }
-
-
     let attachmentPath = '';
-
     if (data.attachment && data.attachment[0]) {
       attachmentPath = await uploadFile(data.attachment[0]);
       if (!attachmentPath) return; // Stop submission if upload fails
     }
 
-    const newTask: Omit<Task, 'id' | 'domain'> = {
+    const newTask: Partial<Omit<Task, 'id' | 'domain'>> = {
       title: data.title,
       description: data.description,
       dueDate: data.dueDate.toISOString(),
-      status,
-      assignees: status !== 'Unassigned' ? assignees : [],
-      assignedToLead: status === 'Unassigned' ? assignedToLead : undefined,
       comments: [],
       submissions: [],
       attachment: attachmentPath,
     };
     
-    onCreateTask(newTask, data.sendEmail);
+    if (isSuperAdmin && data.assignmentType === 'domainLeads') {
+        const leadUsers = allUsers.filter(u => data.assignees!.includes(u.id));
+        newTask.assignedToLead = leadUsers[0]; 
+        newTask.status = 'Unassigned';
+        newTask.assignees = [];
+    } else {
+        const assignedUsers = allUsers.filter(u => data.assignees!.includes(u.id));
+        newTask.assignees = assignedUsers;
+        newTask.status = 'Pending';
+    }
+    
+    onCreateTask(newTask as Omit<Task, 'id' | 'domain'>, data.sendEmail);
     form.reset();
     setIsOpen(false);
   };
