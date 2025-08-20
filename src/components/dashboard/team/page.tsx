@@ -77,42 +77,32 @@ const RoleSection = ({ title, users, badgeClass, isModifyMode, onEdit }: { title
     );
 }
 
-const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isModifyMode: boolean, onEdit: (user: UserType) => void }) => {
-    const activeDomain = useSearchParams().get('domain');
+const MemberSection = ({ users, domains, isModifyMode, onEdit }: { users: UserType[], domains: any[], isModifyMode: boolean, onEdit: (user: UserType) => void }) => {
+    const activeDomainFilter = useSearchParams().get('domain');
 
-    const membersByDomain = React.useMemo(() => {
-        const grouped: Record<string, UserType[]> = {};
+    const { membersByDomain, unassignedMembers } = React.useMemo(() => {
+        const domainMap: Record<string, UserType[]> = {};
+        const assignedEmails = new Set<string>();
 
-        users.forEach(user => {
-            const userDomains = user.domains || [];
-            if (activeDomain) {
-                // If a domain is filtered, only show users from that domain.
-                if (userDomains.includes(activeDomain)) {
-                    if (!grouped[activeDomain]) grouped[activeDomain] = [];
-                    grouped[activeDomain].push(user);
+        const domainsToDisplay = activeDomainFilter ? domains.filter(d => d.id === activeDomainFilter) : domains;
+
+        domainsToDisplay.forEach(domain => {
+            domainMap[domain.id] = [];
+            const members = domain.members || [];
+            members.forEach((memberEmail: string) => {
+                const user = users.find(u => u.email === memberEmail);
+                if (user) {
+                    domainMap[domain.id].push(user);
+                    assignedEmails.add(memberEmail);
                 }
-            } else {
-                // If no filter, group user into all their domains.
-                if (userDomains.length > 0) {
-                    userDomains.forEach(domain => {
-                        if (!grouped[domain]) grouped[domain] = [];
-                        grouped[domain].push(user);
-                    });
-                } else {
-                    // Group users with no domains into 'Unassigned'.
-                    if (!grouped['Unassigned']) grouped['Unassigned'] = [];
-                    grouped['Unassigned'].push(user);
-                }
-            }
+            });
         });
+
+        const unassigned = users.filter(user => user.role === 'member' && !assignedEmails.has(user.email || ''));
         
-        return Object.entries(grouped).sort(([domainA], [domainB]) => {
-            if (domainA === 'Unassigned') return 1;
-            if (domainB === 'Unassigned') return -1;
-            return domainA.localeCompare(domainB);
-        });
+        return { membersByDomain: Object.entries(domainMap).sort(([a], [b]) => a.localeCompare(b)), unassignedMembers: unassigned };
 
-    }, [users, activeDomain]);
+    }, [users, domains, activeDomainFilter]);
     
     if (users.length === 0) return null;
 
@@ -120,6 +110,7 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
          <div className="space-y-6">
             <h2 className="text-xl font-bold font-headline">Members</h2>
             {membersByDomain.map(([domain, domainUsers]) => (
+                domainUsers.length > 0 &&
                 <div key={domain}>
                     <h3 className="text-lg font-semibold mb-3 border-b pb-2">{domain}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -159,12 +150,45 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
                     </div>
                 </div>
             ))}
+            {!activeDomainFilter && unassignedMembers.length > 0 && (
+                 <div key="Unassigned">
+                    <h3 className="text-lg font-semibold mb-3 border-b pb-2">Unassigned</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                        {unassignedMembers.map(user => (
+                            <Card key={user.id + '-unassigned'} className="text-center flex flex-col">
+                                <CardContent className="p-4 flex flex-col items-center gap-2 flex-grow">
+                                    <Avatar className="h-20 w-20 border-2">
+                                        <AvatarImage src={user.avatarUrl || ''} />
+                                        <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="space-y-1">
+                                        <p className="font-semibold">{user.name}</p>
+                                        <Badge variant="outline" className="border-muted-foreground">{user.role}</Badge>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex-col items-center justify-center gap-2 pt-2">
+                                    <Separator className="mb-2" />
+                                    {user.email && (
+                                        <Link href={`mailto:${user.email}`} passHref className="w-full">
+                                            <Button variant="ghost" size="sm" className="w-full h-8 text-xs truncate">
+                                                <Mail className="h-4 w-4 mr-2" />
+                                                {user.email}
+                                            </Button>
+                                        </Link>
+                                    )}
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
 export default function TeamPage() {
     const [allUsers, setAllUsers] = React.useState<UserType[]>([]);
+    const [domains, setDomains] = React.useState<any[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
     const [isModifyMode, setIsModifyMode] = React.useState(false);
@@ -186,18 +210,29 @@ export default function TeamPage() {
 
         const usersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
             setAllUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType)));
-            setIsLoading(false);
+            if (domains.length > 0) setIsLoading(false);
         }, (error) => {
             console.error(error);
             toast({ variant: 'destructive', title: 'Error loading users' });
             setIsLoading(false);
         });
 
+        const domainsUnsub = onSnapshot(collection(db, 'domains'), (snapshot) => {
+            setDomains(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            if (allUsers.length > 0) setIsLoading(false);
+        }, (error) => {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error loading domains' });
+            setIsLoading(false);
+        });
+
+
         return () => {
             unsubAuth();
             usersUnsub();
+            domainsUnsub();
         };
-    }, [toast]);
+    }, [toast, allUsers.length, domains.length]);
     
     const handleEditUser = (user: UserType) => {
         router.push('/dashboard/permissions');
@@ -248,7 +283,7 @@ export default function TeamPage() {
                  <RoleSection title="Super Admins" users={filteredAndGroupedUsers['super-admin']} badgeClass="border-destructive text-destructive" isModifyMode={isModifyMode} onEdit={handleEditUser} />
                  <RoleSection title="Admins" users={filteredAndGroupedUsers['admin']} badgeClass="border-primary text-primary" isModifyMode={isModifyMode} onEdit={handleEditUser} />
                  <RoleSection title="Domain Leads" users={filteredAndGroupedUsers['domain-lead']} badgeClass="border-secondary-foreground" isModifyMode={isModifyMode} onEdit={handleEditUser} />
-                 <MemberSection users={filteredAndGroupedUsers['member']} isModifyMode={isModifyMode} onEdit={handleEditUser} />
+                 <MemberSection users={filteredAndGroupedUsers['member']} domains={domains} isModifyMode={isModifyMode} onEdit={handleEditUser} />
             </div>
         </div>
     )
