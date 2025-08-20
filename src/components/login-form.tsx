@@ -5,7 +5,7 @@
  * and password reset functionality.
  *
  * How it works:
- * - It uses ShadCN's `Tabs` component to switch between "Sign In" and "Sign Up" forms.
+ * - It uses ShadCN's `Tabs ` component to switch between "Sign In" and "Sign Up" forms.
  * - It uses `react-hook-form` and `zod` for robust form validation on all input fields.
  * - It communicates directly with the Firebase Authentication SDK for all auth operations
  *   (e.g., `createUserWithEmailAndPassword`, `signInWithPopup`).
