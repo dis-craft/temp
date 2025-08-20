@@ -101,7 +101,7 @@ export function LoginForm() {
     // Check special roles
     const specialRolesRef = doc(db, 'config', 'specialRoles');
     const specialRolesSnap = await getDoc(specialRolesRef);
-    if (specialRolesSnap.exists() && specialRolesSnap.data()[email]) {
+    if (specialRolesSnap.exists() && specialRolesSnap.data()?.[email]) {
         return true;
     }
 
@@ -128,7 +128,7 @@ export function LoginForm() {
     const specialRolesSnap = await getDoc(specialRolesRef);
     if (specialRolesSnap.exists()) {
         const specialRolesData = specialRolesSnap.data();
-        if (specialRolesData[email]) {
+        if (specialRolesData?.[email]) {
             // Special roles trump domain roles
             return { role: specialRolesData[email], domains: [] };
         }

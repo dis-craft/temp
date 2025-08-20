@@ -82,10 +82,10 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
 
     const membersByDomain = React.useMemo(() => {
         const grouped: Record<string, UserType[]> = {};
-        const filteredUsers = activeDomain ? users.filter(u => u.domains?.includes(activeDomain)) : users;
+        const filteredUsers = activeDomain ? users.filter(u => (u.domains || []).includes(activeDomain)) : users;
 
         filteredUsers.forEach(user => {
-            const domain = activeDomain || (user.domains && user.domains.length > 0 ? user.domains[0] : null) || 'Unassigned';
+            const domain = activeDomain || (user.domains && user.domains.length > 0 ? user.domains[0] : 'Unassigned');
             if (!grouped[domain]) {
                 grouped[domain] = [];
             }

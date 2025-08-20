@@ -27,7 +27,8 @@ export function formatUserName(user: User, allUsers: User[] = []): string {
   };
   
   const role = user.role;
-  const domain = user.activeDomain || (user.domains && user.domains.length > 0 ? user.domains[0] : null);
+  const userDomains = user.domains || [];
+  const domain = user.activeDomain || (userDomains.length > 0 ? userDomains[0] : null);
 
   let suffix = roleAbbr[role];
   let group: User[] = [];
@@ -40,7 +41,7 @@ export function formatUserName(user: User, allUsers: User[] = []): string {
       // Fallback for dynamic domains
       suffix = `${domain.substring(0, 3)}${suffix}`;
     }
-    group = allUsers.filter(u => u.role === role && u.domains.includes(domain));
+    group = allUsers.filter(u => u.role === role && (u.domains || []).includes(domain));
   } else {
     group = allUsers.filter(u => u.role === role);
   }
