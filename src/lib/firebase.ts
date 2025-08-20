@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs yo u need
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, sendPasswordResetEmail } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence, initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 import { logActivity } from "./logger";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
@@ -30,7 +30,35 @@ if (!firebaseConfig.apiKey) {
 // Initialize Firebase
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Initialize Firestore with persistence
+let db: any;
+if (typeof window !== 'undefined') {
+  try {
+    db = initializeFirestore(app, {
+      cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+    });
+    enableIndexedDbPersistence(db).catch((err) => {
+      if (err.code == 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled
+        // in one tab at a time.
+        console.warn('Firestore persistence failed: failed-precondition. Multiple tabs open?');
+      } else if (err.code == 'unimplemented') {
+        // The current browser does not support all of the
+        // features required to enable persistence.
+        console.warn('Firestore persistence failed: unimplemented. Browser not supported.');
+      }
+    });
+  } catch (e) {
+    console.error("Error initializing Firestore with persistence", e);
+    db = getFirestore(app);
+  }
+} else {
+    db = getFirestore(app);
+}
+
+export { db };
+
 
 export const sendPasswordReset = async (email: string) => {
   try {
