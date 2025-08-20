@@ -175,17 +175,20 @@ export function LoginForm() {
         avatarUrl: user.photoURL,
         role: role,
         domains: domains,
-        activeDomain: domains.length > 0 ? domains[0] : null,
+        activeDomain: (domains || []).length > 0 ? domains[0] : null,
       };
       await setDoc(userRef, newUser);
       userData = newUser;
       await logActivity(`New user signed up: ${user.email}`, 'Authentication', newUser);
     } else {
-        userData = userSnap.data() as User;
+        const existingData = userSnap.data();
+        const domains = existingData.domains || [];
+        userData = { ...existingData, domains } as User;
+
         // If user exists, ensure activeDomain is set
-        if (!userData.activeDomain && userData.domains.length > 0) {
-            await updateDoc(userRef, { activeDomain: userData.domains[0] });
-            userData.activeDomain = userData.domains[0];
+        if (!userData.activeDomain && domains.length > 0) {
+            await updateDoc(userRef, { activeDomain: domains[0] });
+            userData.activeDomain = domains[0];
         }
         await logActivity(`User signed in: ${user.email}`, 'Authentication', userData);
     }
