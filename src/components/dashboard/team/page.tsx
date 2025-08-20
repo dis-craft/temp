@@ -82,24 +82,30 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
 
     const membersByDomain = React.useMemo(() => {
         const grouped: Record<string, UserType[]> = {};
-        const filteredUsers = activeDomain ? users.filter(u => (u.domains || []).includes(activeDomain)) : users;
 
-        filteredUsers.forEach(user => {
-            const domain = activeDomain || (user.domains && user.domains.length > 0 ? user.domains[0] : 'Unassigned');
-            if (!grouped[domain]) {
-                grouped[domain] = [];
+        users.forEach(user => {
+            const userDomains = user.domains || [];
+            if (activeDomain) {
+                // If a domain is filtered, only show users from that domain.
+                if (userDomains.includes(activeDomain)) {
+                    if (!grouped[activeDomain]) grouped[activeDomain] = [];
+                    grouped[activeDomain].push(user);
+                }
+            } else {
+                // If no filter, group user into all their domains.
+                if (userDomains.length > 0) {
+                    userDomains.forEach(domain => {
+                        if (!grouped[domain]) grouped[domain] = [];
+                        grouped[domain].push(user);
+                    });
+                } else {
+                    // Group users with no domains into 'Unassigned'.
+                    if (!grouped['Unassigned']) grouped['Unassigned'] = [];
+                    grouped['Unassigned'].push(user);
+                }
             }
-            grouped[domain].push(user);
         });
         
-        if (activeDomain) {
-            const result: [string, UserType[]][] = [];
-            if(grouped[activeDomain]) {
-                result.push([activeDomain, grouped[activeDomain]]);
-            }
-            return result;
-        }
-
         return Object.entries(grouped).sort(([domainA], [domainB]) => {
             if (domainA === 'Unassigned') return 1;
             if (domainB === 'Unassigned') return -1;
@@ -118,7 +124,7 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
                     <h3 className="text-lg font-semibold mb-3 border-b pb-2">{domain}</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         {domainUsers.map(user => (
-                             <Card key={user.id} className="text-center flex flex-col">
+                             <Card key={user.id + '-' + domain} className="text-center flex flex-col">
                                 <CardContent className="p-4 flex flex-col items-center gap-2 flex-grow">
                                     <Avatar className="h-20 w-20 border-2">
                                         <AvatarImage src={user.avatarUrl || ''} />
