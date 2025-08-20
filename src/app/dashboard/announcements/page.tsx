@@ -97,7 +97,12 @@ export default function AnnouncementsPage() {
 
                 if (a.targets.includes('all')) return true;
                 if (a.targets.includes(`role-${currentUser.role}`)) return true;
-                if (currentUser.domain && a.targets.includes(`domain-${currentUser.domain}`)) return true;
+                
+                // Check if any of the user's domains match the announcement's targets
+                const userDomains = currentUser.domains || [];
+                if (userDomains.some(domain => a.targets.includes(`domain-${domain}`))) {
+                    return true;
+                }
                 
                 return false;
             });
