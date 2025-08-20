@@ -6,7 +6,7 @@
  *
  * How it works:
  * - It uses `onAuthStateChanged` to get the current authenticated user.
- * - It sets up real-time listeners (`onSnapshot`) with Firestore to fetch users, domains, and announcements.
+ * - It sets up real-time listeners (`onSnapshot`) with Firestore to fetch users,  domains, and announcements.
  * - Announcements are filtered on the client-side to ensure users only see what's targeted to them
  *   (based on role, domain, or 'all').
  * - It provides the logic for creating, updating, and deleting announcements by calling the
