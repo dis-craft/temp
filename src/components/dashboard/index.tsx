@@ -28,15 +28,17 @@ export default function Dashboard() {
   React.useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (user: User | null) => {
         if (user) {
-           const userDoc = await getDoc(doc(db, 'users', user.uid));
-           if(userDoc.exists()) {
-              const userData = { id: user.uid, ...userDoc.data() } as UserType;
-              setCurrentUser(userData);
-           }
+           const userDocRef = doc(db, 'users', user.uid);
+            onSnapshot(userDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setCurrentUser({ id: user.uid, ...docSnap.data() } as UserType);
+                }
+                setLoadingUser(false);
+            });
         } else {
             setCurrentUser(null);
+            setLoadingUser(false);
         }
-        setLoadingUser(false);
     });
 
     return () => unsubscribeAuth();
@@ -53,15 +55,7 @@ export default function Dashboard() {
     });
 
     // Tasks listener
-    let tasksQuery;
-    if (currentUser.role === 'domain-lead' && currentUser.domain) {
-        tasksQuery = query(collection(db, 'tasks'), where('domain', '==', currentUser.domain));
-    } else if (currentUser.role === 'admin') {
-        tasksQuery = query(collection(db, 'tasks'), where('assignees', 'array-contains', { id: currentUser.id, name: currentUser.name, email: currentUser.email, avatarUrl: currentUser.avatarUrl, role: currentUser.role, domain: currentUser.domain }));
-    }
-    else {
-         tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
-    }
+    const tasksQuery = query(collection(db, 'tasks'), orderBy('dueDate', 'desc'));
     const unsubscribeTasks = onSnapshot(tasksQuery, (snapshot) => {
       const tasksData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Task));
       setTasks(tasksData);
@@ -82,20 +76,22 @@ export default function Dashboard() {
   
   const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
     try {
+      const activeDomain = domainFilter || currentUser?.activeDomain;
       let taskWithDomain: Omit<Task, 'id'> & { domain: string | null | undefined } = { ...newTask, domain: null };
       
       if (currentUser?.role === 'domain-lead') {
-        taskWithDomain.domain = currentUser.domain;
-      } else if (currentUser?.role === 'super-admin' && domainFilter) {
-        taskWithDomain.domain = domainFilter;
-      } else if (currentUser?.role === 'super-admin' && newTask.assignedToLead) {
-        // If assigned to a lead, infer domain from the first lead
-        const leadUser = allUsers.find(u => u.id === newTask.assignedToLead?.id);
-        if (leadUser) {
-          taskWithDomain.domain = leadUser.domain;
-        }
+        taskWithDomain.domain = activeDomain;
+      } else if (currentUser?.role === 'super-admin') {
+         taskWithDomain.domain = activeDomain;
+         if (newTask.assignedToLead) {
+             const leadUser = allUsers.find(u => u.id === newTask.assignedToLead?.id);
+             if(leadUser && leadUser.domains.length > 0) {
+                // If a lead is assigned, the task domain should be one of the lead's domains.
+                // We default to the first one if the current context is not set.
+                taskWithDomain.domain = activeDomain || leadUser.domains[0];
+             }
+         }
       }
-
 
       const docRef = await addDoc(collection(db, 'tasks'), taskWithDomain);
       
@@ -178,21 +174,32 @@ export default function Dashboard() {
 
   const visibleTasks = React.useMemo(() => {
     if (!currentUser) return [];
+    
+    const activeDomain = domainFilter || currentUser.activeDomain;
 
     let filteredTasks = tasks;
 
-    // Superadmin/Admin can filter by domain via URL
+    // Superadmin/Admin can filter by domain via URL or active context
     if ((currentUser.role === 'super-admin' || currentUser.role === 'admin')) {
-      if (domainFilter) {
-          filteredTasks = tasks.filter(task => task.domain === domainFilter);
+      if (activeDomain) {
+          filteredTasks = tasks.filter(task => task.domain === activeDomain);
       }
     } else if (currentUser.role === 'domain-lead') {
-      filteredTasks = tasks.filter(task => task.domain === currentUser.domain);
-      // Domain leads should also see tasks assigned to them before they assign to members
-      filteredTasks = filteredTasks.filter(task => (task.status !== 'Unassigned' || task.assignedToLead?.id === currentUser.id));
-
+      if (activeDomain) {
+        filteredTasks = tasks.filter(task => task.domain === activeDomain);
+        // Domain leads should also see tasks assigned to them before they assign to members
+        filteredTasks = filteredTasks.filter(task => (task.status !== 'Unassigned' || task.assignedToLead?.id === currentUser.id));
+      } else {
+        // if no active domain, show all tasks from all their domains
+        filteredTasks = tasks.filter(task => currentUser.domains.includes(task.domain || ''));
+      }
     } else if (currentUser.role === 'member') {
-      filteredTasks = tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
+      if (activeDomain) {
+        filteredTasks = tasks.filter(task => task.domain === activeDomain && (task.assignees || []).some(assignee => assignee.id === currentUser.id));
+      } else {
+         // if no active domain, show all tasks they are assigned to across all their domains
+        filteredTasks = tasks.filter(task => (task.assignees || []).some(assignee => assignee.id === currentUser.id));
+      }
     }
 
     return filteredTasks;
@@ -200,25 +207,28 @@ export default function Dashboard() {
   
   const assignableUsers = React.useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === 'domain-lead') {
-        // Domain leads can only assign to members of their domain
-        return allUsers.filter(u => u.role === 'member' && u.domain === currentUser.domain);
-    }
-    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
-        const members = allUsers.filter(u => u.role === 'member');
-        if (domainFilter) {
-            return members.filter(u => u.domain === domainFilter);
-        }
-        return members;
+    const activeDomain = domainFilter || currentUser.activeDomain;
+    
+    if (currentUser.role === 'domain-lead' || currentUser.role === 'super-admin' || currentUser.role === 'admin') {
+      if (activeDomain) {
+        return allUsers.filter(u => u.role === 'member' && u.domains.includes(activeDomain));
+      }
+      // If no domain context, a lead can only assign to their primary domain.
+      if(currentUser.role === 'domain-lead' && currentUser.domains.length > 0) {
+        return allUsers.filter(u => u.role === 'member' && u.domains.includes(currentUser.domains[0]));
+      }
+      // Admins without context can assign to any member
+      return allUsers.filter(u => u.role === 'member');
     }
     return [];
   }, [currentUser, allUsers, domainFilter]);
 
   const domainLeads = React.useMemo(() => {
      if (!currentUser) return [];
+     const activeDomain = domainFilter || currentUser.activeDomain;
      const leads = allUsers.filter(u => u.role === 'domain-lead');
-     if ((currentUser.role === 'super-admin' || currentUser.role === 'admin') && domainFilter) {
-         return leads.filter(u => u.domain === domainFilter);
+     if ((currentUser.role === 'super-admin' || currentUser.role === 'admin') && activeDomain) {
+         return leads.filter(u => u.domains.includes(activeDomain));
      }
      return leads;
   }, [currentUser, allUsers, domainFilter]);
@@ -244,8 +254,9 @@ export default function Dashboard() {
   }
   
   const canCreateTask = hasPermission(['create_task']) && (currentUser.role !== 'admin');
-  const pageTitle = domainFilter ? `${domainFilter} Domain Tasks` : "Tasks Overview";
-  const pageDescription = domainFilter ? `Viewing tasks for the ${domainFilter} domain.` : "Manage and track all your team's tasks.";
+  const activeDomain = domainFilter || currentUser.activeDomain;
+  const pageTitle = activeDomain ? `${activeDomain} Tasks` : "Tasks Overview";
+  const pageDescription = activeDomain ? `Viewing tasks for the ${activeDomain} domain.` : "Manage and track all your team's tasks.";
 
 
   return (
@@ -270,7 +281,7 @@ export default function Dashboard() {
           ))}
           {visibleTasks.length === 0 && (
             <div className="col-span-full text-center text-muted-foreground py-10">
-              {domainFilter ? `No tasks found for the ${domainFilter} domain.` : 'No tasks assigned yet.'}
+              {activeDomain ? `No tasks found for the ${activeDomain} domain.` : 'No tasks assigned yet. Select a domain to get started.'}
             </div>
           )}
         </div>

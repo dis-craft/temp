@@ -15,6 +15,7 @@ import {
   BookOpen,
   Megaphone,
   Trophy,
+  ChevronsUpDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -30,10 +31,10 @@ import {
 } from '@/components/ui/sidebar';
 import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { app, db } from '@/lib/firebase';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import type { User, SiteStatus } from '@/lib/types';
-import { collection, doc, onSnapshot, query, getDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, getDoc, updateDoc } from 'firebase/firestore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -56,15 +59,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [siteStatus, setSiteStatus] = React.useState<SiteStatus | null>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   
-  const fetchCurrentUser = async (uid: string) => {
-      const userRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(userRef);
-      if (docSnap.exists()) {
-        setUser({ id: docSnap.id, ...docSnap.data() } as User);
-      }
-  };
-
   React.useEffect(() => {
     const auth = getAuth(app);
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
@@ -72,9 +68,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const userRef = doc(db, 'users', firebaseUser.uid);
         const unsubUser = onSnapshot(userRef, (doc) => {
           if (doc.exists()) {
-            setUser({ id: doc.id, ...doc.data() } as User);
+            const userData = { id: doc.id, ...doc.data() } as User;
+            setUser(userData);
           }
-          // setLoading should be managed carefully with siteStatus
+          setLoading(false);
         });
 
         return () => unsubUser();
@@ -91,7 +88,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         } else {
             setSiteStatus({ emergencyShutdown: false, maintenanceMode: false });
         }
-        setLoading(false);
     });
 
     const usersQuery = query(collection(db, 'users'));
@@ -110,6 +106,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleSignOut = async () => {
     await logActivity(`User signed out: ${user?.email}`, 'Authentication', user);
     getAuth(app).signOut();
+  }
+
+  const handleDomainChange = async (newDomain: string) => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.id);
+    await updateDoc(userRef, { activeDomain: newDomain });
+    
+    // update URL to reflect domain change
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('domain', newDomain);
+    router.push(`${pathname}?${params.toString()}`);
   }
   
   if (loading || !user) {
@@ -142,6 +149,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     )
   }
+
+  const pageTitle = searchParams.get('domain') || user.activeDomain || 'Dashboard';
+  const canSwitchDomains = user.domains && user.domains.length > 1;
 
   return (
     <SidebarProvider>
@@ -247,7 +257,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className='flex items-center gap-2'>
                 <SidebarTrigger className='md:hidden'/>
                 <div>
-                    <h1 className="text-2xl font-bold font-headline md:text-3xl">{user.domain ? `${user.domain} Domain` : 'Dashboard'}</h1>
+                   {canSwitchDomains ? (
+                     <DropdownMenu>
+                       <DropdownMenuTrigger asChild>
+                         <Button variant="ghost" className="text-2xl font-bold font-headline md:text-3xl p-1 -ml-1">
+                           {pageTitle}
+                           <ChevronsUpDown className="ml-2 h-5 w-5" />
+                         </Button>
+                       </DropdownMenuTrigger>
+                       <DropdownMenuContent align="start">
+                         <DropdownMenuLabel>Switch Domain</DropdownMenuLabel>
+                         <DropdownMenuSeparator />
+                         <DropdownMenuRadioGroup value={user.activeDomain || ''} onValueChange={handleDomainChange}>
+                          {user.domains.map((domain) => (
+                              <DropdownMenuRadioItem key={domain} value={domain}>
+                                {domain}
+                              </DropdownMenuRadioItem>
+                          ))}
+                         </DropdownMenuRadioGroup>
+                       </DropdownMenuContent>
+                     </DropdownMenu>
+                   ) : (
+                      <h1 className="text-2xl font-bold font-headline md:text-3xl">{pageTitle}</h1>
+                   )}
                     <p className="text-muted-foreground hidden md:block">Welcome back, {formattedUserName}.</p>
                 </div>
             </div>

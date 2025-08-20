@@ -8,7 +8,8 @@ export interface User {
   avatarUrl: string | null;
   phoneNumber?: string | null;
   role: 'super-admin' | 'admin' | 'domain-lead' | 'member';
-  domain?: 'Mechanical' | 'Electrical' | 'Software' | 'Documentation' | string | null;
+  domains: string[];
+  activeDomain?: string | null;
 }
 
 export interface Comment {
@@ -95,7 +96,7 @@ export interface DocumentationFile extends DocumentationItem {
     mimeType: string;
 }
 
-export type AnnouncementTarget = 'all' | `role-${User['role']}` | `domain-${NonNullable<User['domain']>}`;
+export type AnnouncementTarget = 'all' | `role-${User['role']}` | `domain-${User['domains'][number]}`;
 
 export interface Announcement {
     id: string;

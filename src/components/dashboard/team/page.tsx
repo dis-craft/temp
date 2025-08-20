@@ -16,7 +16,7 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { formatUserName } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
@@ -48,7 +48,7 @@ const RoleSection = ({ title, users, badgeClass, isModifyMode, onEdit }: { title
                             </Avatar>
                             <div className="space-y-1">
                                 <p className="font-semibold">{user.name}</p>
-                                <Badge variant="outline" className={badgeClass}>{user.domain ? `${user.domain} - ${user.role}` : user.role}</Badge>
+                                <Badge variant="outline" className={badgeClass}>{user.role}</Badge>
                             </div>
                         </CardContent>
                          <CardFooter className="flex-col items-center justify-center gap-2 pt-2">
@@ -78,22 +78,35 @@ const RoleSection = ({ title, users, badgeClass, isModifyMode, onEdit }: { title
 }
 
 const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isModifyMode: boolean, onEdit: (user: UserType) => void }) => {
+    const activeDomain = useSearchParams().get('domain');
+
     const membersByDomain = React.useMemo(() => {
         const grouped: Record<string, UserType[]> = {};
-        users.forEach(user => {
-            const domain = user.domain || 'Unassigned';
+        const filteredUsers = activeDomain ? users.filter(u => u.domains.includes(activeDomain)) : users;
+
+        filteredUsers.forEach(user => {
+            const domain = activeDomain || user.domains[0] || 'Unassigned';
             if (!grouped[domain]) {
                 grouped[domain] = [];
             }
             grouped[domain].push(user);
         });
-        // Sort domains alphabetically, but put 'Unassigned' last
+        
+        if (activeDomain) {
+            const result: [string, UserType[]][] = [];
+            if(grouped[activeDomain]) {
+                result.push([activeDomain, grouped[activeDomain]]);
+            }
+            return result;
+        }
+
         return Object.entries(grouped).sort(([domainA], [domainB]) => {
             if (domainA === 'Unassigned') return 1;
             if (domainB === 'Unassigned') return -1;
             return domainA.localeCompare(domainB);
         });
-    }, [users]);
+
+    }, [users, activeDomain]);
     
     if (users.length === 0) return null;
 
@@ -146,7 +159,6 @@ const MemberSection = ({ users, isModifyMode, onEdit }: { users: UserType[], isM
 
 export default function TeamPage() {
     const [allUsers, setAllUsers] = React.useState<UserType[]>([]);
-    const [authorizedEmails, setAuthorizedEmails] = React.useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = React.useState(true);
     const [currentUser, setCurrentUser] = React.useState<UserType | null>(null);
     const [isModifyMode, setIsModifyMode] = React.useState(false);
@@ -166,40 +178,6 @@ export default function TeamPage() {
             }
         });
 
-        const unsubs: (()=>void)[] = [];
-
-        // Listener for all authorized emails from domains and special roles
-        const domainsQuery = query(collection(db, 'domains'));
-        const unsubDomains = onSnapshot(domainsQuery, (snapshot) => {
-            const emails = new Set<string>();
-            snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                (data.leads || []).forEach((e: string) => emails.add(e));
-                (data.members || []).forEach((e: string) => emails.add(e));
-            });
-             setAuthorizedEmails(prev => {
-                const newEmails = new Set(prev);
-                emails.forEach(e => newEmails.add(e));
-                return newEmails;
-            });
-        });
-        unsubs.push(unsubDomains);
-        
-        const unsubSpecialRoles = onSnapshot(doc(db, 'config', 'specialRoles'), (doc) => {
-             if (doc.exists()) {
-                const data = doc.data();
-                const emails = new Set(Object.keys(data));
-                 setAuthorizedEmails(prev => {
-                    const newEmails = new Set(prev);
-                    emails.forEach(e => newEmails.add(e));
-                    return newEmails;
-                });
-            }
-        });
-        unsubs.push(unsubSpecialRoles);
-
-
-        // Listener for user data
         const usersUnsub = onSnapshot(collection(db, 'users'), (snapshot) => {
             setAllUsers(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as UserType)));
             setIsLoading(false);
@@ -208,11 +186,10 @@ export default function TeamPage() {
             toast({ variant: 'destructive', title: 'Error loading users' });
             setIsLoading(false);
         });
-        unsubs.push(usersUnsub);
 
         return () => {
-            unsubs.forEach(unsub => unsub());
             unsubAuth();
+            usersUnsub();
         };
     }, [toast]);
     
@@ -228,12 +205,7 @@ export default function TeamPage() {
             'member': []
         };
         
-        if(authorizedEmails.size === 0 && !isLoading) return groups;
-
-        // Filter users to only include those whose emails are in the authorized list
-        const visibleUsers = allUsers.filter(user => user.email && authorizedEmails.has(user.email));
-
-        visibleUsers.forEach(user => {
+        allUsers.forEach(user => {
             if (groups[user.role]) {
                 groups[user.role].push(user);
             }
@@ -245,7 +217,7 @@ export default function TeamPage() {
 
         return groups;
 
-    }, [allUsers, authorizedEmails, isLoading]);
+    }, [allUsers]);
 
     if (isLoading) {
         return (
@@ -264,12 +236,6 @@ export default function TeamPage() {
                     <h1 className="text-3xl font-bold font-headline flex items-center gap-2"><Users /> The Team</h1>
                     <p className="text-muted-foreground">Meet the members driving the club forward.</p>
                 </div>
-                {/* {isSuperAdmin && (
-                    <div className="flex items-center space-x-2">
-                        <Switch id="modify-mode" checked={isModifyMode} onCheckedChange={setIsModifyMode} />
-                        <Label htmlFor="modify-mode">Modify</Label>
-                    </div>
-                )} */}
             </header>
 
             <div className="space-y-8 overflow-y-auto flex-1 pr-2 -mr-2">

@@ -15,6 +15,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { Task, User as UserType } from '@/lib/types';
 import { formatUserName } from '@/lib/utils';
 import { Badge } from '../ui/badge';
+import { useSearchParams } from 'next/navigation';
 
 
 const StarRatingDisplay = ({ rating }: { rating: number }) => {
@@ -39,8 +40,10 @@ export default function Leaderboard() {
     const [domains, setDomains] = React.useState<{ id: string }[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [leaderboardType, setLeaderboardType] = React.useState<'members' | 'leads'>('members');
-    const [domainFilter, setDomainFilter] = React.useState<string>('all');
     
+    const searchParams = useSearchParams();
+    const domainFilter = searchParams.get('domain') || 'all';
+
     const { toast } = useToast();
 
     React.useEffect(() => {
@@ -81,34 +84,42 @@ export default function Leaderboard() {
     }, [toast]);
     
     const leaderboardData = React.useMemo(() => {
-        const userRatings: { [userId: string]: { totalScore: number; count: number } } = {};
+        const userRatings: { [userId: string]: { totalScore: number; count: number, domains: Set<string> } } = {};
 
-        if (leaderboardType === 'members') {
-            tasks.forEach(task => {
+        tasks.forEach(task => {
+            if (domainFilter !== 'all' && task.domain !== domainFilter) {
+                return;
+            }
+
+            if (leaderboardType === 'members') {
                 task.submissions.forEach(sub => {
                     if (sub.qualityScore && sub.qualityScore > 0) {
                         if (!userRatings[sub.author.id]) {
-                            userRatings[sub.author.id] = { totalScore: 0, count: 0 };
+                            userRatings[sub.author.id] = { totalScore: 0, count: 0, domains: new Set() };
                         }
                         userRatings[sub.author.id].totalScore += sub.qualityScore;
                         userRatings[sub.author.id].count += 1;
+                        if (task.domain) {
+                            userRatings[sub.author.id].domains.add(task.domain);
+                        }
                     }
                 });
-            });
-        } else { // leads
-            tasks.forEach(task => {
+            } else { // leads
                 if (task.assignedToLead && task.submissions.length > 0) {
                      const avgTaskScore = task.submissions.reduce((acc, sub) => acc + (sub.qualityScore || 0), 0) / task.submissions.length;
                      if(avgTaskScore > 0) {
                         if (!userRatings[task.assignedToLead.id]) {
-                            userRatings[task.assignedToLead.id] = { totalScore: 0, count: 0 };
+                            userRatings[task.assignedToLead.id] = { totalScore: 0, count: 0, domains: new Set() };
                         }
                         userRatings[task.assignedToLead.id].totalScore += avgTaskScore;
                         userRatings[task.assignedToLead.id].count += 1;
+                        if (task.domain) {
+                            userRatings[task.assignedToLead.id].domains.add(task.domain);
+                        }
                      }
                 }
-            });
-        }
+            }
+        });
 
         const rankedUsers = Object.keys(userRatings)
             .map(userId => {
@@ -116,23 +127,21 @@ export default function Leaderboard() {
                 if (!user) return null;
                 if (leaderboardType === 'members' && user.role !== 'member') return null;
                 if (leaderboardType === 'leads' && user.role !== 'domain-lead') return null;
-
+                
                 const data = userRatings[userId];
                 const average = data.count > 0 ? data.totalScore / data.count : 0;
                 return {
                     ...user,
                     averageRating: average,
                     tasksRated: data.count,
+                    activeDomain: Array.from(data.domains)[0] || user.domains[0] || 'N/A'
                 };
             })
             .filter(Boolean)
             .sort((a, b) => (b?.averageRating || 0) - (a?.averageRating || 0));
         
-        if (domainFilter !== 'all') {
-            return rankedUsers.filter(u => u?.domain === domainFilter);
-        }
-
         return rankedUsers;
+
     }, [tasks, allUsers, leaderboardType, domainFilter]);
     
     const topThree = leaderboardData.slice(0, 3);
@@ -154,17 +163,6 @@ export default function Leaderboard() {
                     <h1 className="text-3xl font-bold font-headline flex items-center gap-2"><Trophy /> Leaderboard</h1>
                     <p className="text-muted-foreground">Recognizing top performers based on task quality ratings.</p>
                 </div>
-                <Select value={domainFilter} onValueChange={setDomainFilter}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Filter by domain..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Domains</SelectItem>
-                        {domains.map(d => (
-                            <SelectItem key={d.id} value={d.id}>{d.id}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
             </header>
             
             <Tabs value={leaderboardType} onValueChange={(v) => setLeaderboardType(v as any)} className="w-full">
@@ -187,7 +185,7 @@ export default function Leaderboard() {
                                 <AvatarFallback>{topThree[1].name?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <h3 className="font-bold text-lg">{formatUserName(topThree[1], allUsers)}</h3>
-                                <p className="text-muted-foreground text-sm">{topThree[1].domain}</p>
+                                <p className="text-muted-foreground text-sm">{topThree[1].activeDomain}</p>
                                 <StarRatingDisplay rating={topThree[1].averageRating} />
                             </Card>
                             )}
@@ -200,7 +198,7 @@ export default function Leaderboard() {
                                 <AvatarFallback>{topThree[0].name?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <h3 className="font-bold text-xl">{formatUserName(topThree[0], allUsers)}</h3>
-                                <p className="text-muted-foreground text-sm">{topThree[0].domain}</p>
+                                <p className="text-muted-foreground text-sm">{topThree[0].activeDomain}</p>
                                 <StarRatingDisplay rating={topThree[0].averageRating} />
                             </Card>
                             )}
@@ -213,7 +211,7 @@ export default function Leaderboard() {
                                 <AvatarFallback>{topThree[2].name?.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <h3 className="font-bold text-lg">{formatUserName(topThree[2], allUsers)}</h3>
-                                <p className="text-muted-foreground text-sm">{topThree[2].domain}</p>
+                                <p className="text-muted-foreground text-sm">{topThree[2].activeDomain}</p>
                                 <StarRatingDisplay rating={topThree[2].averageRating} />
                             </Card>
                             )}
@@ -243,7 +241,7 @@ export default function Leaderboard() {
                                             <span className="font-medium">{formatUserName(user, allUsers)}</span>
                                         </div>
                                         </TableCell>
-                                        <TableCell><Badge variant="outline">{user.domain || 'N/A'}</Badge></TableCell>
+                                        <TableCell><Badge variant="outline">{user.activeDomain || 'N/A'}</Badge></TableCell>
                                         <TableCell><StarRatingDisplay rating={user.averageRating} /></TableCell>
                                         <TableCell className="text-right">{user.tasksRated}</TableCell>
                                     </TableRow>

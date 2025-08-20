@@ -19,7 +19,7 @@ export function formatUserName(user: User, allUsers: User[] = []): string {
     'member': 'Mem',
   };
 
-  const domainAbbr: Record<NonNullable<User['domain']>, string> = {
+  const domainAbbr: Record<string, string> = {
     'Mechanical': 'Mech',
     'Electrical': 'Elec',
     'Software': 'Sw',
@@ -27,7 +27,7 @@ export function formatUserName(user: User, allUsers: User[] = []): string {
   };
   
   const role = user.role;
-  const domain = user.domain;
+  const domain = user.activeDomain || user.domains[0];
 
   let suffix = roleAbbr[role];
   let group: User[] = [];
@@ -40,7 +40,7 @@ export function formatUserName(user: User, allUsers: User[] = []): string {
       // Fallback for dynamic domains
       suffix = `${domain.substring(0, 3)}${suffix}`;
     }
-    group = allUsers.filter(u => u.role === role && u.domain === domain);
+    group = allUsers.filter(u => u.role === role && u.domains.includes(domain));
   } else {
     group = allUsers.filter(u => u.role === role);
   }

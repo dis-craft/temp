@@ -8,7 +8,7 @@
  * - It uses ShadCN's `Tabs` component to switch between "Sign In" and "Sign Up" forms.
  * - It uses `react-hook-form` and `zod` for robust form validation on all input fields.
  * - It communicates directly with the Firebase Authentication SDK for all auth operations
- *   (e.g., `createUserWithEmailAndPassw ord`, `signInWithPopup`).
+ *   (e.g., `createUserWithEmailAndPassword`, `signInWithPopup`).
  * - **Authorization Check**: Before any sign-in or sign-up attempt, it now calls `isEmailAuthorized`
  *   to verify that the user's email has been pre-registered in the system by an admin. If not,
  *   the auth attempt is blocked, and an error is shown.
@@ -33,7 +33,7 @@
 import * as React from 'react';
 import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app, db, sendPasswordReset } from '@/lib/firebase';
-import { doc, setDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, getDocs, query, where, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -119,33 +119,44 @@ export function LoginForm() {
   };
 
 
-  const getRoleForEmail = async (email: string): Promise<{ role: User['role']; domain?: User['domain'] }> => {
+  const getRolesForEmail = async (email: string): Promise<{ role: User['role']; domains: string[] }> => {
+    let finalRole: User['role'] | null = null;
+    const domains: string[] = [];
+
     // Check special roles first
     const specialRolesRef = doc(db, 'config', 'specialRoles');
     const specialRolesSnap = await getDoc(specialRolesRef);
     if (specialRolesSnap.exists()) {
         const specialRolesData = specialRolesSnap.data();
         if (specialRolesData[email]) {
-            return { role: specialRolesData[email] };
+            // Special roles trump domain roles
+            return { role: specialRolesData[email], domains: [] };
         }
     }
     
-    // Check domain leads and members
+    // Check domain roles
     const domainsQuery = query(collection(db, 'domains'));
     const domainsSnapshot = await getDocs(domainsQuery);
     for (const domainDoc of domainsSnapshot.docs) {
         const domainData = domainDoc.data();
-        const domainName = domainDoc.id as User['domain'];
+        const domainName = domainDoc.id;
+
         if ((domainData.leads || []).includes(email)) {
-            return { role: 'domain-lead', domain: domainName };
-        }
-        if ((domainData.members || []).includes(email)) {
-            return { role: 'member', domain: domainName };
+            domains.push(domainName);
+            // If user is a lead in any domain, their highest role is domain-lead
+            if (finalRole !== 'domain-lead') {
+              finalRole = 'domain-lead';
+            }
+        } else if ((domainData.members || []).includes(email)) {
+             domains.push(domainName);
+             if (!finalRole) { // Only set to member if no higher role is found yet
+                finalRole = 'member';
+             }
         }
     }
 
     // This should ideally not be reached if isEmailAuthorized is checked first.
-    return { role: 'member', domain: undefined };
+    return { role: finalRole || 'member', domains };
   };
 
 
@@ -156,20 +167,26 @@ export function LoginForm() {
     let userData: User;
 
     if (!userSnap.exists()) {
-      const { role, domain } = await getRoleForEmail(user.email || '');
+      const { role, domains } = await getRolesForEmail(user.email || '');
       const newUser: User = {
         id: user.uid,
         name: name || user.displayName,
         email: user.email,
         avatarUrl: user.photoURL,
         role: role,
-        domain: domain || null,
+        domains: domains,
+        activeDomain: domains.length > 0 ? domains[0] : null,
       };
       await setDoc(userRef, newUser);
       userData = newUser;
       await logActivity(`New user signed up: ${user.email}`, 'Authentication', newUser);
     } else {
         userData = userSnap.data() as User;
+        // If user exists, ensure activeDomain is set
+        if (!userData.activeDomain && userData.domains.length > 0) {
+            await updateDoc(userRef, { activeDomain: userData.domains[0] });
+            userData.activeDomain = userData.domains[0];
+        }
         await logActivity(`User signed in: ${user.email}`, 'Authentication', userData);
     }
 
