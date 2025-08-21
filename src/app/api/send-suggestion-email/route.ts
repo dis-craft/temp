@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetuclub.vercel.app';
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetu-club.vercel.app';
 
 const sendNewSuggestionEmail = async (suggestion: Suggestion, allUsers: User[]) => {
     const admins = allUsers.filter(u => u.role === 'super-admin' || u.role === 'admin').map(u => u.email).filter(Boolean);

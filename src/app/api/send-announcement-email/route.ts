@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'No recipients found for this announcement.' }, { status: 200 });
         }
         
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetuclub.vercel.app';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://vyomsetu-club.vercel.app';
 
         let attachmentLink = '';
         if (announcement.attachment) {

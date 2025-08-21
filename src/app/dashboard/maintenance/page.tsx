@@ -254,7 +254,7 @@ export default function MaintenancePage() {
                         </div>
                         
                         <div className="space-y-2">
-                            <Label htmlFor="maintenance-eta">Estimated Completion Time (e.g., "5:00 PM PST")</Label>
+                            <Label htmlFor="maintenance-eta">Estimated Completion Time (e.g., "5:00 PM IST")</Label>
                             <div className="flex gap-2">
                                 <Input
                                     id="maintenance-eta"
