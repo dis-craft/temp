@@ -26,9 +26,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { MoreHorizontal, Edit, Trash2, Globe, Users, Shield, Building, Paperclip, Download } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, Globe, Users, Shield, Building, Paperclip, Download, Send } from 'lucide-react';
 import type { Announcement, User } from '@/lib/types';
 import { cn, formatUserName } from '@/lib/utils';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 interface AnnouncementCardProps {
@@ -37,6 +38,7 @@ interface AnnouncementCardProps {
     allUsers: User[];
     onEdit: () => void;
     onDelete: () => void;
+    onNotifyAgain: () => void;
 }
 
 const statusColors: Record<Announcement['status'], string> = {
@@ -47,17 +49,18 @@ const statusColors: Record<Announcement['status'], string> = {
 
 const getTargetInfo = (target: string) => {
     if (target === 'all') return { icon: Globe, label: 'Everyone' };
+    if (target.includes('@')) return { icon: Users, label: target };
     const [type, value] = target.split('-');
     if (type === 'role') {
         const icon = value === 'admin' || value === 'super-admin' ? Shield : Users;
-        return { icon, label: `${value.charAt(0).toUpperCase() + value.slice(1)}s`};
+        return { icon, label: `${value.charAt(0).toUpperCase() + value.slice(1).replace('-', ' ')}s`};
     }
     if (type === 'domain') return { icon: Building, label: `${value} Domain`};
     return { icon: Users, label: target };
 }
 
 
-export default function AnnouncementCard({ announcement, currentUser, allUsers, onEdit, onDelete }: AnnouncementCardProps) {
+export default function AnnouncementCard({ announcement, currentUser, allUsers, onEdit, onDelete, onNotifyAgain }: AnnouncementCardProps) {
 
     const canManage = currentUser.role === 'super-admin' || currentUser.role === 'admin' || announcement.author.id === currentUser.id;
 
@@ -66,6 +69,8 @@ export default function AnnouncementCard({ announcement, currentUser, allUsers, 
         const downloadUrl = `/api/download/${fileKey}`;
         window.open(downloadUrl, '_blank');
     };
+    
+    const formattedTargets = announcement.targets.map(target => getTargetInfo(target).label);
 
     return (
         <Card className="flex flex-col h-full shadow-sm">
@@ -83,6 +88,32 @@ export default function AnnouncementCard({ announcement, currentUser, allUsers, 
                                 <DropdownMenuItem onClick={onEdit}>
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
+                                
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem className="focus:bg-secondary" onSelect={(e) => e.preventDefault()}>
+                                            <Send className="mr-2 h-4 w-4" /> Notify Again
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Resend Announcement?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will send the announcement email for "{announcement.title}" again to the following audiences:
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <ScrollArea className="max-h-40 rounded-md border">
+                                            <div className="p-4 text-sm">
+                                            {formattedTargets.map((label, i) => <div key={i}>{label}</div>)}
+                                            </div>
+                                        </ScrollArea>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={onNotifyAgain}>Confirm & Send</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+
                                 <DropdownMenuSeparator/>
                                  <AlertDialog>
                                     <AlertDialogTrigger asChild>

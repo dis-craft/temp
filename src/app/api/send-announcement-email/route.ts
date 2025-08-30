@@ -17,7 +17,7 @@
  * Linked Files:
  * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
  * - `src/lib/types.ts`: Imports type definitions for `User`, `Announcement`, etc.
- * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` to be set for Nodemailer.
+ * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` for Nodemailer.
  * - `src/app/dashboard/announcements/page.tsx`: The frontend page that calls this API.
  *
  * Tech Used:
@@ -78,16 +78,17 @@ async function getTargetUsers(targets: AnnouncementTarget[]): Promise<User[]> {
 }
 
 export async function POST(req: NextRequest) {
-    const { announcement }: { announcement: Announcement } = await req.json();
+    const { announcement, notifyAgain }: { announcement: Announcement, notifyAgain?: boolean } = await req.json();
 
     if (!announcement) {
         return NextResponse.json({ error: 'Announcement data is required.' }, { status: 400 });
     }
     
-    // In a real app, this would be a scheduled task checking for announcements to be published.
-    // For this project, we trigger it on publish/update if the time is right.
-    if (new Date(announcement.publishAt) > new Date() || announcement.status !== 'published') {
+    if (new Date(announcement.publishAt) > new Date() && !notifyAgain) {
         return NextResponse.json({ message: 'Announcement is not ready for delivery.' }, { status: 200 });
+    }
+    if (announcement.status !== 'published' && !notifyAgain) {
+        return NextResponse.json({ message: 'Announcement is not published.' }, { status: 200 });
     }
 
     const transporter = nodemailer.createTransport({
@@ -117,11 +118,13 @@ export async function POST(req: NextRequest) {
                 </p>
             `;
         }
+        
+        const subjectPrefix = notifyAgain ? '[Reminder] ' : '';
 
         const mailOptions = {
             from: `"vyomsetu-club" <${process.env.GMAIL_USER}>`,
             to: emailList.join(','),
-            subject: `Announcement: ${announcement.title}`,
+            subject: `${subjectPrefix}Announcement: ${announcement.title}`,
             html: `
                 <div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; color: #333; line-height: 1.6;">
                     <div style="max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
@@ -141,8 +144,8 @@ export async function POST(req: NextRequest) {
         
         await transporter.sendMail(mailOptions);
         
-        // Mark as sent to prevent re-sending
-        if (announcement.id) {
+        // Mark as sent to prevent re-sending, but allow re-sending if explicitly asked
+        if (announcement.id && !notifyAgain) {
              const annRef = doc(db, 'announcements', announcement.id);
              await updateDoc(annRef, { sent: true });
         }
