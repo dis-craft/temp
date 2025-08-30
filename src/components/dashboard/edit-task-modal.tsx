@@ -71,21 +71,14 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
   });
   
   const assignableUsers = React.useMemo(() => {
-    if (!currentUser) return [];
-    if (currentUser.role === 'domain-lead') {
-        // Domain leads can only assign to members of their domain
-        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(currentUser.domain || ''));
-    }
-    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
-      // If task has a domain, only show members of that domain
-      if (task.domain) {
-        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(task.domain));
-      }
-      // Otherwise, show all members
-      return allUsers.filter(u => u.role === 'member');
+    const targetDomain = task.domain;
+    if (!targetDomain) return [];
+
+    if (isDomainLeadAssigned || canEditTask) {
+        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(targetDomain));
     }
     return [];
-  }, [currentUser, allUsers, task.domain]);
+  }, [allUsers, task.domain, isDomainLeadAssigned, currentUser]);
 
 
   React.useEffect(() => {
@@ -172,7 +165,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
   };
 
   const onSubmit = async (data: TaskFormValues) => {
-    const assignees = assignableUsers.filter(u => data.assignees.includes(u.id));
+    const assignees = allUsers.filter(u => data.assignees.includes(u.id));
     let attachmentPath = task.attachment; // Keep old attachment by default
 
     if (data.attachment && data.attachment[0]) {
@@ -203,6 +196,8 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
     setIsOpen(false);
   };
 
+  const canEditTask = currentUser?.role === 'super-admin' || (currentUser?.role === 'domain-lead' && task.domain === currentUser.domain);
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="sm:max-w-[600px]">
@@ -230,7 +225,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                     <FormItem>
                       <FormLabel>Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Implement new auth flow" {...field} disabled={isDomainLeadAssigned} />
+                        <Input placeholder="e.g., Implement new auth flow" {...field} disabled={!canEditTask && !isDomainLeadAssigned} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -244,7 +239,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Describe the task in detail..." className="min-h-[100px]" {...field} disabled={isDomainLeadAssigned} />
+                        <Textarea placeholder="Describe the task in detail..." className="min-h-[100px]" {...field} disabled={!canEditTask && !isDomainLeadAssigned} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -266,41 +261,43 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                   render={() => (
                     <FormItem>
                       <FormLabel>Assignees</FormLabel>
-                       <div className="grid grid-cols-2 gap-4">
-                          {assignableUsers.map((user) => (
-                            <FormField
-                              key={user.id}
-                              control={form.control}
-                              name="assignees"
-                              render={({ field }) => {
-                                return (
-                                  <FormItem
-                                    key={user.id}
-                                    className="flex flex-row items-start space-x-3 space-y-0"
-                                  >
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(user.id)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...(field.value || []), user.id])
-                                            : field.onChange(
-                                                field.value?.filter(
-                                                  (value) => value !== user.id
+                       <ScrollArea className="h-40">
+                         <div className="grid grid-cols-2 gap-4">
+                            {assignableUsers.map((user) => (
+                              <FormField
+                                key={user.id}
+                                control={form.control}
+                                name="assignees"
+                                render={({ field }) => {
+                                  return (
+                                    <FormItem
+                                      key={user.id}
+                                      className="flex flex-row items-start space-x-3 space-y-0"
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value?.includes(user.id)}
+                                          onCheckedChange={(checked) => {
+                                            return checked
+                                              ? field.onChange([...(field.value || []), user.id])
+                                              : field.onChange(
+                                                  field.value?.filter(
+                                                    (value) => value !== user.id
+                                                  )
                                                 )
-                                              )
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal">
-                                      {formatUserName(user, allUsers)}
-                                    </FormLabel>
-                                  </FormItem>
-                                )
-                              }}
-                            />
-                          ))}
-                        </div>
+                                          }}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">
+                                        {formatUserName(user, allUsers)}
+                                      </FormLabel>
+                                    </FormItem>
+                                  )
+                                }}
+                              />
+                            ))}
+                          </div>
+                       </ScrollArea>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -322,7 +319,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                                     'w-full pl-3 text-left font-normal',
                                     !field.value && 'text-muted-foreground'
                                   )}
-                                   disabled={isDomainLeadAssigned}
+                                   disabled={!canEditTask && !isDomainLeadAssigned}
                                 >
                                   {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -351,7 +348,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
                         <FormItem>
                           <FormLabel>Replace PDF</FormLabel>
                           <FormControl>
-                            <Input type="file" accept=".pdf" {...form.register('attachment')} disabled={isDomainLeadAssigned} />
+                            <Input type="file" accept=".pdf" {...form.register('attachment')} disabled={!canEditTask && !isDomainLeadAssigned}/>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -364,7 +361,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
             <DialogFooter className="justify-between">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button type="button" variant="destructive" disabled={isDomainLeadAssigned}>
+                  <Button type="button" variant="destructive" disabled={!canEditTask}>
                     <Trash2 className="mr-2 h-4 w-4" /> Delete Task
                   </Button>
                 </AlertDialogTrigger>
