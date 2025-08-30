@@ -85,7 +85,7 @@ export default function Dashboard() {
          taskWithDomain.domain = activeDomain;
          if (newTask.assignedToLead) {
              const leadUser = allUsers.find(u => u.id === newTask.assignedToLead?.id);
-             if(leadUser && leadUser.domains.length > 0) {
+             if(leadUser && leadUser.domains && leadUser.domains.length > 0) {
                 // If a lead is assigned, the task domain should be one of the lead's domains.
                 // We default to the first one if the current context is not set.
                 taskWithDomain.domain = activeDomain || leadUser.domains[0];
