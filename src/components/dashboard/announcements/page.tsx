@@ -22,13 +22,6 @@
  * - `/api/announcements/route.ts`: API for CRUD operations.
  * - `/api/send-announcement-email/route.ts`: API for sending notification emails.
  * - `/api/upload/route.ts`: API for handling file attachments.
- *
- * Tech Used:
- * - React: For building the UI.
- * - Next.js: As the application framework.
- * - Firebase SDK: For real-time database listeners and authentication.
- * - ShadCN UI: For UI components like Button, Card, Modal (Dialog).
- * - Lucide-React: For icons.
  */
 'use client';
 
@@ -90,13 +83,18 @@ export default function AnnouncementsPage() {
             const now = new Date();
             const visibleAnnouncements = allAnnouncements.filter(a => {
                 const publishDate = new Date(a.publishAt);
-                if (a.status !== 'published' || publishDate > now) return false;
 
-                // Admins and super-admins see all published announcements
+                // Allow admins to see drafts, otherwise only show published
+                if(currentUser.role !== 'super-admin' && currentUser.role !== 'admin') {
+                   if (a.status !== 'published' || publishDate > now) return false;
+                }
+
+                // Admins and super-admins see all announcements
                 if (currentUser.role === 'super-admin' || currentUser.role === 'admin') return true;
 
                 if (a.targets.includes('all')) return true;
                 if (a.targets.includes(`role-${currentUser.role}`)) return true;
+                if (a.targets.includes(currentUser.email || '')) return true;
                 
                 // Check if any of the user's domains match the announcement's targets
                 const userDomains = currentUser.domains || [];
@@ -168,7 +166,7 @@ export default function AnnouncementsPage() {
                 const updatedData = { ...data, attachment: attachmentPath, sent: false }; // Reset sent status on update
                 await updateDoc(annRef, updatedData);
                 
-                finalAnnouncementData = { ...updatedData, id: editingAnnouncement.id, author: currentUser, createdAt: editingAnnouncement.createdAt, publishAt: publishAt };
+                finalAnnouncementData = { ...editingAnnouncement, ...updatedData };
 
                 toast({ title: 'Announcement Updated', description: 'The announcement has been successfully updated.' });
                 await logActivity(`Updated announcement: "${data.title}"`, 'Announcements', currentUser);
@@ -217,6 +215,21 @@ export default function AnnouncementsPage() {
             toast({ variant: 'destructive', title: 'Delete Failed', description: (error as Error).message });
         }
     }
+
+    const handleNotifyAgain = async (announcement: Announcement) => {
+        try {
+            await fetch('/api/send-announcement-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ announcement: announcement, notifyAgain: true }),
+            });
+            toast({ title: 'Notification Sent', description: 'The announcement email has been sent again.' });
+            await logActivity(`Resent announcement: "${announcement.title}"`, 'Announcements', currentUser);
+        } catch (error) {
+            console.error('Error re-sending announcement:', error);
+            toast({ variant: 'destructive', title: 'Failed to Send', description: (error as Error).message });
+        }
+    };
     
     const handleEditClick = (announcement: Announcement) => {
         setEditingAnnouncement(announcement);
@@ -253,7 +266,7 @@ export default function AnnouncementsPage() {
             </header>
             
             <div className="flex-grow overflow-y-auto mt-4 pr-2 -mr-2">
-                 <div className="space-y-4">
+                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {announcements.map(a => 
                         <AnnouncementCard 
                             key={a.id} 
@@ -261,6 +274,7 @@ export default function AnnouncementsPage() {
                             currentUser={currentUser} 
                             onEdit={() => handleEditClick(a)}
                             onDelete={() => handleDeleteAnnouncement(a.id)}
+                            onNotifyAgain={() => handleNotifyAgain(a)}
                             allUsers={allUsers}
                         />
                     )}
@@ -275,6 +289,7 @@ export default function AnnouncementsPage() {
                 currentUser={currentUser}
                 announcement={editingAnnouncement}
                 domains={domains}
+                allUsers={allUsers}
             />
         </div>
     );

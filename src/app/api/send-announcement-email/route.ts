@@ -17,7 +17,7 @@
  * Linked Files:
  * - `src/lib/firebase.ts`: Imports the Firestore database instance (`db`).
  * - `src/lib/types.ts`: Imports type definitions for `User`, `Announcement`, etc.
- * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` to be set for Nodemailer.
+ * - `.env`: Requires `GMAIL_USER` and `GMAIL_APP_PASSWORD` for Nodemailer.
  * - `src/app/dashboard/announcements/page.tsx`: The frontend page that calls this API.
  *
  * Tech Used:
@@ -35,47 +35,60 @@ import type { User, Announcement, AnnouncementTarget } from '@/lib/types';
 async function getTargetUsers(targets: AnnouncementTarget[]): Promise<User[]> {
     const usersSnapshot = await getDocs(collection(db, 'users'));
     const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    const allUserEmails = new Set(allUsers.map(u => u.email).filter(Boolean));
 
     if (targets.includes('all')) {
         return allUsers;
     }
 
-    const targetedUsers = new Map<string, User>();
+    const targetedEmails = new Set<string>();
 
-    for (const user of allUsers) {
-        for (const target of targets) {
-            const [type, value] = target.split('-');
-            
-            let match = false;
-            if (type === 'role' && user.role === value) {
-                match = true;
-            } else if (type === 'domain' && user.domain === value) {
-                match = true;
+    for (const target of targets) {
+        if (target.includes('@')) { // Handle individual email targets
+            targetedEmails.add(target);
+        }
+        else if (target.startsWith('role-')) {
+            const role = target.substring('role-'.length);
+            if (role === 'domain-lead') {
+                // Special handling for domain leads: get them from the domains collection
+                const domainsSnapshot = await getDocs(collection(db, 'domains'));
+                domainsSnapshot.forEach(domainDoc => {
+                    const leads = domainDoc.data().leads || [];
+                    leads.forEach((leadEmail: string) => targetedEmails.add(leadEmail));
+                });
+            } else {
+                allUsers.forEach(user => {
+                    if (user.role === role) {
+                        targetedEmails.add(user.email!);
+                    }
+                });
             }
-            
-            if (match) {
-                targetedUsers.set(user.id, user);
-                // A user can match multiple targets, but we only need to add them once.
-                // We can break here since this user is already included.
-                break; 
-            }
+        } else if (target.startsWith('domain-')) {
+            const domain = target.substring('domain-'.length);
+            allUsers.forEach(user => {
+                if (user.domains?.includes(domain)) {
+                    targetedEmails.add(user.email!);
+                }
+            });
         }
     }
     
-    return Array.from(targetedUsers.values());
+    // Convert the set of emails back to a list of User objects
+    return allUsers.filter(user => user.email && targetedEmails.has(user.email));
 }
 
 export async function POST(req: NextRequest) {
-    const { announcement }: { announcement: Announcement } = await req.json();
+    const { announcement, notifyAgain }: { announcement: Announcement, notifyAgain?: boolean } = await req.json();
 
     if (!announcement) {
         return NextResponse.json({ error: 'Announcement data is required.' }, { status: 400 });
     }
     
-    // In a real app, this would be a scheduled task checking for announcements to be published.
-    // For this project, we trigger it on publish/update if the time is right.
-    if (new Date(announcement.publishAt) > new Date() || announcement.status !== 'published') {
+    if (new Date(announcement.publishAt) > new Date() && !notifyAgain) {
         return NextResponse.json({ message: 'Announcement is not ready for delivery.' }, { status: 200 });
+    }
+    if (announcement.status !== 'published' && !notifyAgain) {
+        return NextResponse.json({ message: 'Announcement is not published.' }, { status: 200 });
     }
 
     const transporter = nodemailer.createTransport({
@@ -105,11 +118,13 @@ export async function POST(req: NextRequest) {
                 </p>
             `;
         }
+        
+        const subjectPrefix = notifyAgain ? '[Reminder] ' : '';
 
         const mailOptions = {
             from: `"vyomsetu-club" <${process.env.GMAIL_USER}>`,
             to: emailList.join(','),
-            subject: `Announcement: ${announcement.title}`,
+            subject: `${subjectPrefix}Announcement: ${announcement.title}`,
             html: `
                 <div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; color: #333; line-height: 1.6;">
                     <div style="max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
@@ -129,8 +144,8 @@ export async function POST(req: NextRequest) {
         
         await transporter.sendMail(mailOptions);
         
-        // Mark as sent to prevent re-sending
-        if (announcement.id) {
+        // Mark as sent to prevent re-sending, but allow re-sending if explicitly asked
+        if (announcement.id && !notifyAgain) {
              const annRef = doc(db, 'announcements', announcement.id);
              await updateDoc(annRef, { sent: true });
         }

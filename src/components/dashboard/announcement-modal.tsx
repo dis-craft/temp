@@ -1,4 +1,4 @@
- 
+
 'use client';
 
 import * as React from 'react';
@@ -15,6 +15,7 @@ import type { Announcement, User, AnnouncementTarget } from '@/lib/types';
 import { Checkbox } from '../ui/checkbox';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
+import { formatUserName } from '@/lib/utils';
 
 
 const announcementSchema = z.object({
@@ -32,11 +33,12 @@ interface AnnouncementModalProps {
     setIsOpen: (isOpen: boolean) => void;
     onSubmit: (data: Omit<Announcement, 'id' | 'author' | 'createdAt' | 'sent' | 'publishAt'>, attachmentFile?: File) => Promise<void>;
     currentUser: User;
+    allUsers: User[];
     announcement: Announcement | null;
     domains: { id: string }[];
 }
 
-export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, announcement, domains }: AnnouncementModalProps) {
+export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, allUsers, announcement, domains }: AnnouncementModalProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const form = useForm<AnnouncementFormValues>({
@@ -98,6 +100,11 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
             domains.forEach(d => {
                 options.push({ value: `domain-${d.id}`, label: `${d.id} Domain`, group: 'Domains'});
             });
+            const domainLeads = allUsers.filter(u => u.role === 'domain-lead' && u.email);
+            domainLeads.forEach(lead => {
+                 options.push({ value: lead.email!, label: formatUserName(lead, allUsers), group: 'Individual Leads'})
+            });
+
         } else if (role === 'domain-lead' && domain) {
             options.push({ value: `domain-${domain}`, label: `${domain} Members`, group: 'My Domain' });
         }
@@ -110,7 +117,7 @@ export function AnnouncementModal({ isOpen, setIsOpen, onSubmit, currentUser, an
             return acc;
         }, {} as Record<string, { value: AnnouncementTarget, label: string, group: string }[]>);
 
-    }, [currentUser, domains]);
+    }, [currentUser, domains, allUsers]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
