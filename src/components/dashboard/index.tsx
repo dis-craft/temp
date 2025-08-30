@@ -75,54 +75,52 @@ export default function Dashboard() {
   }, [currentUser, toast]);
   
   const addTask = async (newTask: Omit<Task, 'id' | 'domain'>, sendEmail: boolean) => {
+    if (!currentUser) return;
     try {
-      const activeDomain = domainFilter || currentUser?.activeDomain;
-      let taskWithDomain: Omit<Task, 'id'> & { domain: string | null | undefined } = { ...newTask, domain: null };
-      
-      if (currentUser?.role === 'domain-lead') {
-        taskWithDomain.domain = activeDomain;
-      } else if (currentUser?.role === 'super-admin') {
-         taskWithDomain.domain = activeDomain;
-         if (newTask.assignedToLead) {
-             const leadUser = allUsers.find(u => u.id === newTask.assignedToLead?.id);
-             if(leadUser && leadUser.domains && leadUser.domains.length > 0) {
-                // If a lead is assigned, the task domain should be one of the lead's domains.
-                // We default to the first one if the current context is not set.
-                taskWithDomain.domain = activeDomain || leadUser.domains[0];
-             }
-         }
-      }
+        const activeDomain = domainFilter || currentUser?.activeDomain;
+        const taskWithDomain: Omit<Task, 'id'> = { ...newTask, domain: activeDomain || null };
 
-      const docRef = await addDoc(collection(db, 'tasks'), taskWithDomain);
-      
-      toast({
-        title: 'Task Created!',
-        description: `Task "${newTask.title}" has been successfully created.`,
-      });
-      await logActivity(`Task created: "${newTask.title}"`, 'Task Management', currentUser);
+        if (currentUser?.role === 'super-admin') {
+            if (newTask.assignedToLead) {
+                const leadUser = allUsers.find(u => u.id === newTask.assignedToLead?.id);
+                // If a lead is assigned, the task domain MUST be one of the lead's domains.
+                // We default to their first domain if no activeDomain context is set.
+                taskWithDomain.domain = activeDomain || (leadUser?.domains?.[0] || null);
+            } else {
+                // If assigned to members or admins, use the active domain context.
+                taskWithDomain.domain = activeDomain || null;
+            }
+        }
 
-      if (sendEmail) {
-        const leadOrAssignees = newTask.assignedToLead ? [newTask.assignedToLead] : newTask.assignees;
-        await fetch('/api/send-task-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            task: {...taskWithDomain, id: docRef.id},
-            assignees: leadOrAssignees,
-            domainLeadEmail: currentUser?.email
-          }),
+        const docRef = await addDoc(collection(db, 'tasks'), taskWithDomain);
+
+        toast({
+            title: 'Task Created!',
+            description: `Task "${newTask.title}" has been successfully created.`,
         });
-      }
+        await logActivity(`Task created: "${newTask.title}"`, 'Task Management', currentUser);
 
-    } catch(e) {
-      toast({
-        title: 'Error creating task',
-        description: (e as Error).message,
-        variant: 'destructive',
-      });
-      await logActivity(`Error creating task: ${(e as Error).message}`, 'Error', currentUser);
+        if (sendEmail) {
+            const leadOrAssignees = newTask.assignedToLead ? [newTask.assignedToLead] : newTask.assignees;
+            await fetch('/api/send-task-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    task: { ...taskWithDomain, id: docRef.id },
+                    assignees: leadOrAssignees,
+                    domainLeadEmail: currentUser?.email,
+                }),
+            });
+        }
+    } catch (e) {
+        toast({
+            title: 'Error creating task',
+            description: (e as Error).message,
+            variant: 'destructive',
+        });
+        await logActivity(`Error creating task: ${(e as Error).message}`, 'Error', currentUser);
     }
-  };
+};
 
   const updateTask = async (taskId: string, updatedData: Partial<Omit<Task, 'id'>>) => {
     try {

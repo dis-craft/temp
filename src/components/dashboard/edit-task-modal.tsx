@@ -71,20 +71,13 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
   });
   
   const assignableUsers = React.useMemo(() => {
-    if (!currentUser) return [];
-    if (currentUser.role === 'domain-lead') {
-        // Domain leads can only assign to members of their domain
-        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(currentUser.domain || ''));
-    }
-    if (currentUser.role === 'super-admin' || currentUser.role === 'admin') {
-      // If task has a domain, only show members of that domain
-      if (task.domain) {
-        return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(task.domain));
-      }
-      // Otherwise, show all members
-      return allUsers.filter(u => u.role === 'member');
-    }
-    return [];
+      if (!currentUser) return [];
+
+      const targetDomain = task.domain;
+      if (!targetDomain) return []; // Should not happen if a lead is assigned a task
+
+      return allUsers.filter(u => u.role === 'member' && (u.domains || []).includes(targetDomain));
+
   }, [currentUser, allUsers, task.domain]);
 
 
@@ -172,7 +165,7 @@ export function EditTaskModal({ isOpen, setIsOpen, onUpdateTask, onDeleteTask, a
   };
 
   const onSubmit = async (data: TaskFormValues) => {
-    const assignees = assignableUsers.filter(u => data.assignees.includes(u.id));
+    const assignees = allUsers.filter(u => data.assignees.includes(u.id));
     let attachmentPath = task.attachment; // Keep old attachment by default
 
     if (data.attachment && data.attachment[0]) {
