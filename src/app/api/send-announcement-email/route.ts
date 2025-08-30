@@ -35,34 +35,43 @@ import type { User, Announcement, AnnouncementTarget } from '@/lib/types';
 async function getTargetUsers(targets: AnnouncementTarget[]): Promise<User[]> {
     const usersSnapshot = await getDocs(collection(db, 'users'));
     const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+    const allUserEmails = new Set(allUsers.map(u => u.email).filter(Boolean));
 
     if (targets.includes('all')) {
         return allUsers;
     }
 
-    const targetedUsers = new Map<string, User>();
+    const targetedEmails = new Set<string>();
 
-    for (const user of allUsers) {
-        for (const target of targets) {
-            const [type, value] = target.split('-');
-            
-            let match = false;
-            if (type === 'role' && user.role === value) {
-                match = true;
-            } else if (type === 'domain' && user.domain === value) {
-                match = true;
+    for (const target of targets) {
+        if (target.startsWith('role-')) {
+            const role = target.substring('role-'.length);
+            if (role === 'domain-lead') {
+                // Special handling for domain leads: get them from the domains collection
+                const domainsSnapshot = await getDocs(collection(db, 'domains'));
+                domainsSnapshot.forEach(domainDoc => {
+                    const leads = domainDoc.data().leads || [];
+                    leads.forEach((leadEmail: string) => targetedEmails.add(leadEmail));
+                });
+            } else {
+                allUsers.forEach(user => {
+                    if (user.role === role) {
+                        targetedEmails.add(user.email!);
+                    }
+                });
             }
-            
-            if (match) {
-                targetedUsers.set(user.id, user);
-                // A user can match multiple targets, but we only need to add them once.
-                // We can break here since this user is already included.
-                break; 
-            }
+        } else if (target.startsWith('domain-')) {
+            const domain = target.substring('domain-'.length);
+            allUsers.forEach(user => {
+                if (user.domains?.includes(domain)) {
+                    targetedEmails.add(user.email!);
+                }
+            });
         }
     }
     
-    return Array.from(targetedUsers.values());
+    // Convert the set of emails back to a list of User objects
+    return allUsers.filter(user => user.email && targetedEmails.has(user.email));
 }
 
 export async function POST(req: NextRequest) {
