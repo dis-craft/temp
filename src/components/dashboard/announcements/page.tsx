@@ -22,13 +22,6 @@
  * - `/api/announcements/route.ts`: API for CRUD operations.
  * - `/api/send-announcement-email/route.ts`: API for sending notification emails.
  * - `/api/upload/route.ts`: API for handling file attachments.
- *
- * Tech Used:
- * - React: For building the UI.
- * - Next.js: As the application framework.
- * - Firebase SDK: For real-time database listeners and authentication.
- * - ShadCN UI: For UI components like Button, Card, Modal (Dialog).
- * - Lucide-React: For icons.
  */
 'use client';
 
@@ -97,6 +90,7 @@ export default function AnnouncementsPage() {
 
                 if (a.targets.includes('all')) return true;
                 if (a.targets.includes(`role-${currentUser.role}`)) return true;
+                 if (a.targets.includes(currentUser.email || '')) return true;
                 
                 // Check if any of the user's domains match the announcement's targets
                 const userDomains = currentUser.domains || [];
@@ -275,6 +269,7 @@ export default function AnnouncementsPage() {
                 currentUser={currentUser}
                 announcement={editingAnnouncement}
                 domains={domains}
+                allUsers={allUsers}
             />
         </div>
     );

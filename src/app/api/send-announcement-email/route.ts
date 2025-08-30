@@ -44,7 +44,10 @@ async function getTargetUsers(targets: AnnouncementTarget[]): Promise<User[]> {
     const targetedEmails = new Set<string>();
 
     for (const target of targets) {
-        if (target.startsWith('role-')) {
+        if (target.includes('@')) { // Handle individual email targets
+            targetedEmails.add(target);
+        }
+        else if (target.startsWith('role-')) {
             const role = target.substring('role-'.length);
             if (role === 'domain-lead') {
                 // Special handling for domain leads: get them from the domains collection
